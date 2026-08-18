@@ -1,0 +1,18 @@
+{
+  "name": "MEA Route Navigator",
+  "short_name": "MEA Route",
+  "description": "นำทางไปตรวจอุปกรณ์ MEA เรียงตามลำดับเส้นทาง",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "./index.html",
+  "display": "standalone",
+  "background_color": "#f7f5f0",
+  "theme_color": "#ea6500",
+  "orientation": "portrait-primary",
+  "lang": "th",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
