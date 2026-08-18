@@ -1,0 +1,2285 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แบบตรวจสอบบำรุงรักษาหม้อแปลงจำหน่าย</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --border:#333;
+    --header-bg:#d9d9d9;
+    --page-bg:#f4f4f4;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:'Sarabun','Tahoma',sans-serif;
+    background:var(--page-bg);
+    margin:0;
+    padding:20px;
+    color:#111;
+  }
+
+  .app-banner{
+    max-width:900px;
+    margin:0 auto 10px auto;
+    text-align:center;
+    font-size:14px;
+    font-weight:600;
+    color:#1f6feb;
+    letter-spacing:.02em;
+  }
+
+  /* AUTH BAR */
+  .authbar{
+    max-width:900px;
+    margin:0 auto 10px auto;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    background:#fff;
+    border:1px solid #ddd;
+    border-radius:8px;
+    padding:10px 14px;
+    font-size:13.5px;
+  }
+  .authbar .who{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .authbar img.avatar{
+    width:26px;height:26px;border-radius:50%;
+  }
+  .authbar button{
+    font-family:inherit;
+    font-size:13.5px;
+    padding:7px 12px;
+    border-radius:6px;
+    border:1px solid #999;
+    background:#fff;
+    cursor:pointer;
+  }
+  .authbar button.google{
+    display:flex;align-items:center;gap:8px;
+    border-color:#1f6feb; color:#1f6feb; font-weight:600;
+  }
+  .authbar button.google:hover{background:#eef4ff;}
+  .authbar button.signout:hover{background:#eee;}
+  .authbar .not-signed{color:#a33;font-weight:500;}
+
+  .toolbar{
+    max-width:900px;
+    margin:0 auto 12px auto;
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  .toolbar button{
+    font-family:inherit;
+    font-size:14px;
+    padding:8px 14px;
+    border-radius:6px;
+    border:1px solid #999;
+    background:#fff;
+    cursor:pointer;
+    transition:background .15s;
+  }
+  .toolbar button:disabled{opacity:.45; cursor:not-allowed;}
+  .toolbar button:hover:not(:disabled){background:#eee;}
+  .toolbar button.primary{background:#1f6feb;color:#fff;border-color:#1f6feb;}
+  .toolbar button.primary:hover:not(:disabled){background:#1a5fcf;}
+  .toolbar .status{
+    font-size:13px;
+    color:#555;
+    align-self:center;
+    margin-right:auto;
+  }
+
+  /* RECORDS PANEL */
+  .admin-panel{
+    max-width:900px;
+    margin:0 auto 14px auto;
+    background:#fff7e6;
+    border:1px solid #e8c874;
+    border-radius:8px;
+    padding:12px 14px;
+  }
+  .admin-head{
+    font-size:13px;
+    font-weight:600;
+    color:#7a5b00;
+    margin-bottom:8px;
+  }
+  .admin-add-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .admin-add-row input{
+    flex:1;
+    font-family:inherit;
+    font-size:13.5px;
+    padding:7px 10px;
+    border:1px solid #bbb;
+    border-radius:6px;
+    outline:none;
+  }
+  .admin-add-row input:focus{border-color:#1f6feb;}
+  .admin-add-row button{
+    font-family:inherit;
+    font-size:13.5px;
+    padding:7px 14px;
+    border-radius:6px;
+    border:1px solid #1f6feb;
+    background:#1f6feb;
+    color:#fff;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .admin-list{display:flex; flex-wrap:wrap; gap:6px;}
+  .admin-chip{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    background:#fff;
+    border:1px solid #ccc;
+    border-radius:14px;
+    padding:4px 6px 4px 10px;
+    font-size:12.5px;
+  }
+  .admin-chip button{
+    border:none;
+    background:#eee;
+    border-radius:50%;
+    width:18px; height:18px;
+    line-height:1;
+    cursor:pointer;
+    font-size:12px;
+    color:#a33;
+  }
+  .admin-chip button:hover{background:#fdecea;}
+  .admin-empty{font-size:12.5px; color:#8a6d00;}
+
+  .records-panel{
+    max-width:900px;
+    margin:0 auto 14px auto;
+    background:#fff;
+    border:1px solid #ddd;
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .records-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:#f0f4fa;
+    padding:9px 14px;
+    font-size:13.5px;
+    font-weight:600;
+  }
+  .records-head button.mini{
+    font-family:inherit;
+    font-size:12.5px;
+    padding:4px 10px;
+    border-radius:5px;
+    border:1px solid #aaa;
+    background:#fff;
+    cursor:pointer;
+  }
+  .records-list{max-height:230px; overflow-y:auto;}
+  .records-empty{padding:14px; color:#888; font-size:13px; text-align:center;}
+  .record-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 14px;
+    border-top:1px solid #eee;
+    font-size:13px;
+    gap:8px;
+  }
+  .record-row.active{background:#fff8dc;}
+  .record-row .info{flex:1; min-width:0;}
+  .record-row .info .wo{font-weight:600; color:#1f6feb;}
+  .record-row .info .meta{color:#666; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .record-row .actions{display:flex; gap:6px; flex-shrink:0;}
+  .record-row .actions button{
+    font-family:inherit;
+    font-size:12px;
+    padding:5px 9px;
+    border-radius:5px;
+    border:1px solid #999;
+    background:#fff;
+    cursor:pointer;
+  }
+  .record-row .actions button.del{color:#b3261e; border-color:#e3a; }
+  .record-row .actions button.del:hover{background:#fdecea;}
+  .record-row .actions button.open:hover{background:#eef4ff;}
+
+  .sheet{
+    max-width:900px;
+    margin:0 auto;
+    background:#fff;
+    border:1px solid var(--border);
+    padding:18px;
+  }
+  h1{
+    text-align:center;
+    font-size:20px;
+    margin:0 0 32px 0;
+    font-weight:700;
+  }
+  .wo-external{
+    max-width:900px;
+    margin:0 auto 8px auto;
+    display:flex;
+    justify-content:flex-end;
+  }
+  .wo-box{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    width:200px;
+  }
+  .wo-box label{
+    font-size:11px;
+    font-weight:600;
+    color:#444;
+    letter-spacing:.03em;
+  }
+  .wo-box input{
+    border:1px solid var(--border);
+    border-radius:4px;
+    font-family:inherit;
+    font-size:14px;
+    font-weight:600;
+    padding:5px 8px;
+    outline:none;
+    text-transform:uppercase;
+  }
+  .wo-box input:focus{
+    background:#fff8dc;
+    border-color:#1f6feb;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+  }
+  table.outer{margin-bottom:0;}
+  td,th{
+    border:1px solid var(--border);
+    padding:4px 6px;
+    vertical-align:middle;
+  }
+  .section-title{
+    background:var(--header-bg);
+    font-weight:600;
+    text-decoration:underline;
+    padding:5px 6px;
+  }
+  .num-cell{
+    width:22px;
+    font-weight:600;
+    text-align:left;
+    vertical-align:top;
+  }
+  .label{
+    white-space:nowrap;
+    font-weight:500;
+    background:#fafafa;
+    overflow:hidden;
+  }
+  table.table-s1 .label{
+    font-size:13px;
+  }
+  input[type="text"], input[type="time"], input[type="date"]{
+    font-family:inherit;
+    font-size:13.5px;
+    border:none;
+    outline:none;
+    width:100%;
+    background:transparent;
+    padding:2px;
+  }
+  input[type="text"]:focus, input[type="time"]:focus, input[type="date"]:focus{
+    background:#fff8dc;
+  }
+  .fill-cell{padding:2px 4px;}
+
+  /* Section 2 table */
+  .form-switcher{
+    max-width:900px;
+    margin:0 auto 10px auto;
+    display:flex;
+    gap:6px;
+  }
+  .form-tab{
+    flex:1;
+    font-family:inherit;
+    font-size:13px;
+    padding:9px 8px;
+    border-radius:7px;
+    border:1px solid #999;
+    background:#fff;
+    cursor:pointer;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .form-tab.active{background:#1f6feb; color:#fff; border-color:#1f6feb; font-weight:600;}
+  .form-tab:hover:not(.active){background:#eef4ff;}
+
+  .table-s2h .label{white-space:nowrap;}
+
+  table.checklist2{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.checklist2 th{background:var(--header-bg); text-align:center; font-weight:600; border:1px solid var(--border); padding:4px 6px;}
+  table.checklist2 td{border:1px solid var(--border); padding:3px 5px; vertical-align:middle;}
+  table.checklist2 td.sec-head{background:#eef0f2; font-weight:700;}
+  table.checklist2 td.num{width:26px; text-align:center;}
+  table.checklist2 td.item{width:150px;}
+  table.checklist2 td.criteria{width:170px;}
+  table.checklist2 td.chk2{width:38px; text-align:center;}
+  table.checklist2 th.chk2{width:38px;}
+  table.checklist2 input[type="checkbox"]{width:15px; height:15px; cursor:pointer;}
+  table.checklist2 input[type="text"]{width:100%; font-size:12.5px;}
+  table.checklist2 .criteria-extra{display:flex; align-items:center; gap:4px; flex-wrap:wrap; font-size:11.5px; margin-top:2px;}
+  table.checklist2 .criteria-extra label{display:inline-flex; align-items:center; gap:3px;}
+
+  table.meas2 td{border:1px solid var(--border); padding:4px 6px; font-size:12.5px;}
+  table.meas2 td.mlabel{background:#fff9c4; font-weight:600;}
+  table.meas2 td.mrange{text-align:center; font-weight:600;}
+  table.meas2 input[type="text"]{width:100%; font-size:12.5px;}
+
+  table.dir2 th, table.dir2 td{border:1px solid var(--border); padding:4px 6px; font-size:12.5px;}
+  table.dir2 th{background:var(--header-bg); text-align:center; font-weight:600;}
+  table.dir2 td.dirset{font-weight:600; text-align:center;}
+  table.dir2 .dir-opts{display:flex; flex-wrap:wrap; gap:8px;}
+  table.dir2 .dir-opts label{display:inline-flex; align-items:center; gap:3px; white-space:nowrap;}
+  table.dir2 input[type="checkbox"]{width:14px; height:14px; cursor:pointer;}
+  table.dir2 input[type="text"]{width:100%; font-size:12.5px;}
+
+  .table-s3h .label{white-space:nowrap;}
+  .oil-title{background:#fff200 !important; text-decoration:none; text-align:center; font-weight:700;}
+
+  .oil-round{max-width:900px; margin:0 auto -1px auto;}
+  .oil-round table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .oil-round td, .oil-round th{border:1px solid var(--border); padding:4px 6px;}
+  .oil-round td.round-head{background:#eef0f2; font-weight:700;}
+  .oil-round td.round-label{width:14%; background:#fafafa; font-weight:500;}
+  .oil-round td.round-num{text-align:center; width:8%;}
+  .oil-round td.round-avg{width:10%; background:#fafafa; font-weight:600; text-align:center;}
+  .oil-round input[type="text"]{width:100%; font-size:12.5px; text-align:center; border:none; outline:none; background:transparent;}
+  .oil-round input[type="text"]:focus{background:#fff8dc;}
+  .oil-round .oil-note{font-size:11.5px; color:#555; padding:3px 6px;}
+  .dir2-note{font-size:11.5px; color:#555; margin:4px 2px 0 2px;}
+
+  table.checklist th{
+    background:var(--header-bg);
+    text-align:center;
+    font-weight:600;
+  }
+  table.checklist td.item-num{width:36px; text-align:center;}
+  table.checklist td.item-name{width:260px;}
+  table.checklist td.chk{width:46px; text-align:center;}
+  table.table-s1, table.table-s5h{
+    table-layout:fixed;
+  }
+  .table-s5h .label{white-space:nowrap; font-size:13px;}
+  table.checklist input[type="checkbox"]{
+    width:16px;height:16px;cursor:pointer;
+  }
+  table.checklist td.defect input{width:100%;}
+
+  .radio-row label{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    margin-right:14px;
+    white-space:nowrap;
+    cursor:pointer;
+  }
+  .radio-row input[type="checkbox"]{width:15px;height:15px;cursor:pointer;}
+
+  textarea{
+    width:100%;
+    border:none;
+    outline:none;
+    font-family:inherit;
+    font-size:13.5px;
+    resize:vertical;
+    min-height:28px;
+    background:transparent;
+    padding:2px;
+  }
+  textarea:focus{background:#fff8dc;}
+
+  .footer-note{
+    text-align:right;
+    font-size:12.5px;
+    margin-top:6px;
+    color:#333;
+  }
+  .footer-left{
+    font-size:12.5px;
+    color:#333;
+    display:flex;
+    justify-content:space-between;
+    margin-top:6px;
+  }
+
+  @page{
+    size: A4 portrait;
+    margin: 18mm 8mm 8mm 8mm;
+  }
+  @media print{
+    html, body{background:#fff; padding:0; margin:0;}
+    .toolbar, .authbar, .records-panel, .form-switcher, .app-banner{display:none;}
+    .admin-panel{display:none !important;}
+    .wo-external{display:none;}
+    .sheet{border:none; max-width:none; padding:0; min-width:0;}
+    input:focus, textarea:focus{background:transparent;}
+    #printWrap{overflow:hidden; margin:0 auto;}
+    .mobile-scroll{overflow:visible;}
+    .sheet[data-multipage="true"] table.checklist tr,
+    .sheet[data-multipage="true"] table.outer tr{
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+  }
+
+  .sheet[data-multipage="true"] table.checklist td,
+  .sheet[data-multipage="true"] table.checklist th{
+    padding:2px 5px;
+  }
+
+  .mobile-scroll{
+    width:100%;
+  }
+
+  @media screen and (max-width:900px){
+    body{padding:10px;}
+    .mobile-scroll{
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+      padding-bottom:6px;
+    }
+    .sheet{min-width:760px;}
+    .wo-external{min-width:760px;}
+  }
+
+  @media screen and (max-width:700px){
+    .authbar{
+      flex-direction:column;
+      align-items:stretch;
+      gap:10px;
+    }
+    .authbar > div{display:flex; justify-content:center;}
+    .toolbar{
+      justify-content:stretch;
+      flex-direction:column;
+    }
+    .toolbar .status{
+      text-align:center;
+      margin:0 0 4px 0;
+    }
+    .toolbar button{
+      width:100%;
+      padding:12px 14px;
+      font-size:15px;
+    }
+    .records-head{flex-wrap:wrap; gap:8px;}
+    .record-row{
+      flex-direction:column;
+      align-items:stretch;
+      gap:8px;
+    }
+    .record-row .actions{justify-content:flex-end;}
+    .record-row .actions button{padding:8px 14px; font-size:13px;}
+    /* Prevent iOS Safari auto-zoom on focus by using 16px inputs */
+    input[type="text"], textarea{font-size:16px;}
+    table.checklist input[type="checkbox"], .radio-row input[type="checkbox"]{
+      width:20px; height:20px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-banner">APP Inspection for Asset &nbsp;By&nbsp; Dr. Jupetor</div>
+
+<div class="authbar">
+  <div class="who" id="whoBox">
+    <span class="not-signed">ยังไม่ได้เข้าสู่ระบบ — ข้อมูลจะไม่ถูกบันทึก</span>
+  </div>
+  <div>
+    <button class="google" id="signInBtn">
+      <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.1 0-11-4.9-11-11s4.9-11 11-11c2.8 0 5.3 1 7.3 2.7l5.7-5.7C33.6 6.5 29 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c2.8 0 5.3 1 7.3 2.7l5.7-5.7C33.6 6.5 29 4.5 24 4.5c-7.7 0-14.3 4.4-17.7 10.2z"/><path fill="#4CAF50" d="M24 43.5c5 0 9.5-1.9 12.9-5.1l-6-5c-2 1.4-4.4 2.1-6.9 2.1-5.3 0-9.7-3.5-11.3-8.3l-6.5 5C9.6 39 16.2 43.5 24 43.5z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.4 5.6l6 5c-.4.4 6.6-4.8 6.6-14.1 0-1.2-.1-2.4-.4-3.5z"/></svg>
+      เข้าสู่ระบบด้วย Google
+    </button>
+    <button class="signout" id="signOutBtn" style="display:none;">ออกจากระบบ</button>
+  </div>
+</div>
+
+<div class="toolbar">
+  <span class="status" id="status">พร้อมใช้งาน</span>
+  <button id="saveBtn" class="primary" disabled>💾 บันทึกเป็นรายการใหม่</button>
+  <button id="updateBtn" disabled>🔄 บันทึกทับรายการปัจจุบัน</button>
+  <button id="newBtn">📄 ฟอร์มใหม่</button>
+  <button id="resetBtn">🗑️ ล้างฟอร์ม</button>
+  <button id="printBtn">🖨️ พิมพ์ / PDF</button>
+  <button id="exportBtn" disabled>⬇️ ดาวน์โหลด CSV</button>
+</div>
+
+<div class="admin-panel" id="adminPanel" style="display:none;">
+  <div class="admin-head">🔐 จัดการสิทธิ์ดาวน์โหลด CSV (เฉพาะแอดมิน)</div>
+  <div class="admin-add-row">
+    <input type="email" id="adminEmailInput" placeholder="อีเมล Gmail ที่จะอนุญาตให้ดาวน์โหลด">
+    <button id="adminAddBtn" class="primary">+ Add</button>
+  </div>
+  <div class="admin-list" id="adminList"></div>
+</div>
+
+<div class="form-switcher" id="formSwitcher">
+  <button class="form-tab active" data-form="sf015">SF-07-0-015 &nbsp;หม้อแปลงจำหน่าย</button>
+  <button class="form-tab" data-form="sf022">SF-07-0-022 &nbsp;หม้อแปลงวงจรตาข่าย/สวิตช์แรงกลาง</button>
+  <button class="form-tab" data-form="sf023">SF-07-0-023 &nbsp;ทดสอบ/กรองน้ำมัน</button>
+  <button class="form-tab" data-form="sf021">SF-07-0-021 &nbsp;เครื่องป้องกันหม้อแปลงวงจรตาข่าย</button>
+  <button class="form-tab" data-form="sf016">SF-07-0-016 &nbsp;Load Break Switch</button>
+  <button class="form-tab" data-form="sf017">SF-07-0-017 &nbsp;Sectionalizer</button>
+  <button class="form-tab" data-form="sf018">SF-07-0-018 &nbsp;Ring Main Unit (RMU)</button>
+  <button class="form-tab" data-form="sf019">SF-07-0-019 &nbsp;UNITSUBSTATION</button>
+</div>
+
+<div class="records-panel" id="recordsPanel">
+  <div class="records-head">
+    <span>📁 ข้อมูลที่บันทึกไว้ (<span id="recordsCount">0</span>)</span>
+    <button id="refreshBtn" class="mini">↻ รีเฟรช</button>
+  </div>
+  <div class="records-list" id="recordsList">
+    <div class="records-empty">เข้าสู่ระบบเพื่อดูรายการที่บันทึกไว้</div>
+  </div>
+</div>
+
+<div class="mobile-scroll">
+<div id="printWrap">
+<div id="printContent">
+  <div class="wo-external" id="woExternal">
+    <div class="wo-box">
+      <label for="woInput">WORK ORDER</label>
+      <input type="text" id="woInput" data-k="work_order" placeholder="WOXXXXXXXXX">
+    </div>
+  </div>
+  <div class="sheet" id="sheetEl">
+    <h1>แบบตรวจสอบบำรุงรักษาหม้อแปลงจำหน่าย</h1>
+
+  <!-- SECTION 1 -->
+  <table class="outer table-s1">
+    <colgroup>
+      <col style="width:11%;"><col style="width:14%;">
+      <col style="width:11%;"><col style="width:14%;">
+      <col style="width:11%;"><col style="width:14%;">
+      <col style="width:11%;"><col style="width:14%;">
+    </colgroup>
+    <tr><td colspan="8" class="section-title">1&nbsp;&nbsp;ข้อมูลทั่วไป</td></tr>
+    <tr>
+      <td class="label">Station ID</td><td class="fill-cell" colspan="3"><input type="text" data-k="station_id"></td>
+      <td class="label">สถานที่</td><td class="fill-cell" colspan="3"><input type="text" data-k="location"></td>
+    </tr>
+    <tr>
+      <td class="label">GIS&nbsp;&nbsp;Lat.</td><td class="fill-cell" colspan="3"><input type="text" data-k="gis_lat"></td>
+      <td class="label">Long.</td><td class="fill-cell" colspan="3"><input type="text" data-k="gis_long"></td>
+    </tr>
+    <tr>
+      <td class="label">MEA No1.</td><td class="fill-cell"><input type="text" data-k="mea1"></td>
+      <td class="label">MEA No2.</td><td class="fill-cell"><input type="text" data-k="mea2"></td>
+      <td class="label">MEA No3.</td><td class="fill-cell"><input type="text" data-k="mea3"></td>
+      <td class="label">จำนวนเฟส</td><td class="fill-cell"><input type="text" data-k="phases"></td>
+    </tr>
+    <tr>
+      <td class="label">ยี่ห้อ</td><td class="fill-cell"><input type="text" data-k="brand1"></td>
+      <td class="label">ยี่ห้อ</td><td class="fill-cell"><input type="text" data-k="brand2"></td>
+      <td class="label">ยี่ห้อ</td><td class="fill-cell"><input type="text" data-k="brand3"></td>
+      <td class="label">ขนาด</td><td class="fill-cell"><input type="text" data-k="size"></td>
+    </tr>
+    <tr>
+      <td class="label">ชนิด</td><td class="fill-cell"><input type="text" data-k="kind"></td>
+      <td class="label" colspan="2">ลักษณะการติดตั้ง</td><td class="fill-cell" colspan="4"><input type="text" data-k="install_type"></td>
+    </tr>
+  </table>
+
+  <!-- SECTION 2 -->
+  <table class="checklist" style="margin-top:-1px;">
+    <tr><td colspan="6" class="section-title">2&nbsp;&nbsp;รายการตรวจสอบบำรุงรักษา</td></tr>
+    <tr>
+      <th rowspan="2" style="width:36px;">&nbsp;</th>
+      <th rowspan="2">รายการ</th>
+      <th colspan="3">ผลการตรวจสอบ</th>
+      <th rowspan="2">ข้อบกพร่อง</th>
+    </tr>
+    <tr>
+      <th class="chk">ปกติ</th><th class="chk">ชำรุด</th><th class="chk">ไม่มี</th>
+    </tr>
+    <tbody id="checklistBody"></tbody>
+  </table>
+
+  <!-- SECTION 3 -->
+  <table class="outer" style="margin-top:-1px;">
+    <tr><td colspan="6" class="section-title">3&nbsp;&nbsp;ตรวจสอบวัดกระแสและแรงดันไฟฟ้า</td></tr>
+    <tr>
+      <td colspan="6" class="radio-row fill-cell">
+        <label><input type="checkbox" data-k="day"> กลางวัน</label>
+        <label><input type="checkbox" data-k="night"> กลางคืน</label>
+        &nbsp;&nbsp;เวลา : <input type="text" data-k="time" style="width:90px;display:inline-block;">
+        &nbsp;&nbsp;วิธีการ:
+        <label><input type="checkbox" data-k="onsite"> วัดหน้างาน</label>
+        <label><input type="checkbox" data-k="tlm"> TLM</label>
+      </td>
+    </tr>
+    <tr>
+      <td class="label">แรงดันไฟฟ้า(V)</td>
+      <td class="fill-cell">V1-N= <input type="text" data-k="v1n" style="width:70px;display:inline-block;"></td>
+      <td class="fill-cell">V2-N= <input type="text" data-k="v2n" style="width:70px;display:inline-block;"></td>
+      <td class="fill-cell">V3-N= <input type="text" data-k="v3n" style="width:70px;display:inline-block;"></td>
+      <td class="fill-cell">V1-2= <input type="text" data-k="v12" style="width:70px;display:inline-block;"></td>
+      <td class="fill-cell">V1-3= V2-3= <input type="text" data-k="v13_23" style="width:60px;display:inline-block;"></td>
+    </tr>
+    <tr>
+      <td class="label">กระแสไฟฟ้า(A)</td>
+      <td class="fill-cell">IN= <input type="text" data-k="i_n" style="width:70px;display:inline-block;"></td>
+      <td class="fill-cell">I1= <input type="text" data-k="i1" style="width:70px;display:inline-block;"></td>
+      <td class="fill-cell">I2= <input type="text" data-k="i2" style="width:70px;display:inline-block;"></td>
+      <td class="fill-cell">I3= <input type="text" data-k="i3" style="width:70px;display:inline-block;"></td>
+      <td class="fill-cell">ผลรวมกระแสหน้าหม้อแปลงฯ ทั้งหมด <input type="text" data-k="i_total" style="width:60px;display:inline-block;"></td>
+    </tr>
+  </table>
+
+  <!-- SECTION 4 -->
+  <table class="outer" style="margin-top:-1px;">
+    <tr><td class="section-title">4&nbsp;&nbsp;สิ่งที่ต้องปรับปรุงหรือข้อมูลเพิ่มเติม :</td></tr>
+    <tr><td class="fill-cell"><textarea data-k="note4" rows="2" style="min-height:66px;"></textarea></td></tr>
+  </table>
+
+  <!-- SECTION 5 -->
+  <table class="outer" style="margin-top:-1px;">
+    <tr><td class="section-title">5&nbsp;&nbsp;การปรับปรุงข้อบกพร่อง :</td></tr>
+    <tr><td class="fill-cell"><textarea data-k="note5" rows="2" style="min-height:66px;"></textarea></td></tr>
+  </table>
+
+  <!-- SIGN OFF -->
+  <table class="outer" style="margin-top:-1px;">
+    <tr>
+      <td class="label" style="width:16%;">ผู้ตรวจ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="checker1"></td>
+      <td class="label" style="width:16%;">ผู้ตรวจสอบ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="checker2"></td>
+    </tr>
+    <tr>
+      <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="pos1"></td>
+      <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="pos2"></td>
+    </tr>
+    <tr>
+      <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="date1"></td>
+      <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="date2"></td>
+    </tr>
+  </table>
+
+  <div class="footer-left">
+    <span>ปรับปรุงครั้งที่ 0 &nbsp;วันที่ ...</span>
+    <span>SF-07-0-015</span>
+  </div>
+  </div>
+
+  <div class="sheet" id="sheetEl2" style="display:none;">
+    <h1>แบบตรวจสอบบำรุงรักษาหม้อแปลงวงจรตาข่ายและสวิตช์แรงกลาง</h1>
+
+    <!-- HEADER INFO -->
+    <table class="outer table-s2h">
+      <colgroup>
+        <col style="width:13%;"><col style="width:37%;">
+        <col style="width:13%;"><col style="width:37%;">
+      </colgroup>
+      <tr>
+        <td class="label">สถานที่</td><td class="fill-cell"><input type="text" data-k="gen_station"></td>
+        <td class="label">STATION</td><td class="fill-cell"><input type="text" data-k="gen_station_no"></td>
+      </tr>
+      <tr>
+        <td class="label">FIX ID</td><td class="fill-cell"><input type="text" data-k="gen_fix_id" placeholder="WLN..."></td>
+        <td class="label">TR. MEA NO.</td><td class="fill-cell"><input type="text" data-k="gen_tr_mea"></td>
+      </tr>
+      <tr>
+        <td class="label" colspan="2"></td>
+        <td class="label">SW.MEA NO.</td><td class="fill-cell"><input type="text" data-k="gen_sw_mea"></td>
+      </tr>
+    </table>
+
+    <!-- CHECKLIST -->
+    <table class="checklist2" style="margin-top:-1px;">
+      <tr><td colspan="7" class="section-title">รายการตรวจสอบบำรุงรักษา</td></tr>
+      <tr>
+        <th rowspan="2" style="width:30px;">ลำดับ</th>
+        <th rowspan="2">รายการ</th>
+        <th rowspan="2">เกณฑ์</th>
+        <th colspan="2">ผลตรวจสอบ</th>
+        <th rowspan="2">ข้อบกพร่อง</th>
+        <th rowspan="2">การดำเนินการแก้ไข/เพิ่มเติม</th>
+      </tr>
+      <tr>
+        <th class="chk2">ปกติ</th><th class="chk2">ไม่ปกติ</th>
+      </tr>
+      <tbody id="sf022ChecklistBody"></tbody>
+    </table>
+
+    <!-- ELECTRICAL MEASUREMENTS -->
+    <table class="outer meas2" style="margin-top:-1px;">
+      <colgroup>
+        <col style="width:26%;"><col style="width:15%;"><col style="width:15%;">
+        <col style="width:15%;"><col style="width:15%;"><col style="width:14%;">
+      </colgroup>
+      <tbody id="sf022MeasBody"></tbody>
+    </table>
+
+    <!-- CURRENT DIRECTION SETS -->
+    <table class="outer dir2" style="margin-top:-1px;">
+      <tr><td colspan="7" class="section-title">ผลการวัดกระแสไฟฟ้าด้านแรงต่ำ</td></tr>
+      <tr>
+        <th style="width:8%;">ชุด</th>
+        <th style="width:32%;">ทิศทาง</th>
+        <th>IPh1 (A)</th><th>IPh2 (A)</th><th>IPh3 (A)</th><th>In (A)</th>
+        <th style="width:16%;">หมายเหตุ</th>
+      </tr>
+      <tbody id="sf022DirBody"></tbody>
+      <tr>
+        <td colspan="2" style="text-align:center; font-weight:600;">รวม</td>
+        <td class="fill-cell"><input type="text" data-k="sum_iph1"></td>
+        <td class="fill-cell"><input type="text" data-k="sum_iph2"></td>
+        <td class="fill-cell"><input type="text" data-k="sum_iph3"></td>
+        <td class="fill-cell"><input type="text" data-k="sum_in"></td>
+        <td></td>
+      </tr>
+    </table>
+    <div class="dir2-note">ทิศทางคือยืนอยู่บนถนน แล้วหันหน้าเข้าหม้อแปลง สายไฟฟ้าไปทิศทางใด (&lt;400A)</div>
+
+    <!-- SUGGESTIONS -->
+    <table class="outer" style="margin-top:10px;">
+      <tr><td class="section-title">ข้อเสนอแนะ/ข้อมูลเพิ่มเติม</td></tr>
+      <tr><td class="fill-cell"><textarea data-k="sf022_note" rows="2" style="min-height:50px;"></textarea></td></tr>
+    </table>
+
+    <!-- SIGN OFF -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr>
+        <td class="label" style="width:16%;">ผู้ตรวจ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf022_checker1"></td>
+        <td class="label" style="width:16%;">ผู้ตรวจสอบ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf022_checker2"></td>
+      </tr>
+      <tr>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf022_pos1"></td>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf022_pos2"></td>
+      </tr>
+      <tr>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf022_date1"></td>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf022_date2"></td>
+      </tr>
+    </table>
+
+    <div class="footer-left">
+      <span>ปรับปรุงครั้งที่ 0 &nbsp;วันที่ ...</span>
+      <span>SF-07-0-022</span>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheetEl3" style="display:none;">
+    <h1>แบบตรวจสอบบำรุงรักษาทดสอบและกรองน้ำมันหม้อแปลงวงจรตาข่าย</h1>
+
+    <!-- HEADER INFO -->
+    <table class="outer table-s3h">
+      <colgroup>
+        <col style="width:14%;"><col style="width:20%;">
+        <col style="width:14%;"><col style="width:20%;">
+        <col style="width:14%;"><col style="width:18%;">
+      </colgroup>
+      <tr>
+        <td class="label">สถานที่</td><td class="fill-cell" colspan="5"><input type="text" data-k="g3_station"></td>
+      </tr>
+      <tr>
+        <td class="label">STATION ID</td><td class="fill-cell"><input type="text" data-k="g3_station_id"></td>
+        <td class="label">SW.ยี่ห้อ</td><td class="fill-cell"><input type="text" data-k="g3_sw"></td>
+        <td class="label">TR.MEA No.</td><td class="fill-cell"><input type="text" data-k="g3_tr_mea"></td>
+      </tr>
+    </table>
+
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td class="section-title oil-title">ขั้นตอนการกรองน้ำมัน</td></tr>
+    </table>
+
+    <div id="sf023Rounds"></div>
+
+    <!-- SUGGESTIONS -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td class="section-title">ข้อเสนอแนะ/ข้อมูลเพิ่มเติม</td></tr>
+      <tr><td class="fill-cell"><textarea data-k="sf023_note" rows="4" style="min-height:110px;"></textarea></td></tr>
+    </table>
+
+    <!-- SIGN OFF -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr>
+        <td class="label" style="width:16%;">ผู้ตรวจ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf023_checker1"></td>
+        <td class="label" style="width:16%;">ผู้ตรวจสอบ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf023_checker2"></td>
+      </tr>
+      <tr>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf023_pos1"></td>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf023_pos2"></td>
+      </tr>
+      <tr>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf023_date1"></td>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf023_date2"></td>
+      </tr>
+    </table>
+
+    <div class="footer-left">
+      <span>ปรับปรุงครั้งที่ 0 &nbsp;วันที่ ...</span>
+      <span>SF-07-0-023</span>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheetEl4" style="display:none;">
+    <h1>แบบตรวจสอบบำรุงรักษาเครื่องป้องกันหม้อแปลงวงจรตาข่าย</h1>
+
+    <!-- HEADER INFO -->
+    <table class="outer table-s4h">
+      <colgroup>
+        <col style="width:13%;"><col style="width:37%;">
+        <col style="width:13%;"><col style="width:37%;">
+      </colgroup>
+      <tr>
+        <td class="label">สถานที่</td><td class="fill-cell"><input type="text" data-k="g4_station"></td>
+        <td class="label">STATION</td><td class="fill-cell"><input type="text" data-k="g4_station_no"></td>
+      </tr>
+      <tr>
+        <td class="label">FIX ID</td><td class="fill-cell"><input type="text" data-k="g4_fix_id" placeholder="WLN..."></td>
+        <td class="label">MEA NO.</td><td class="fill-cell"><input type="text" data-k="g4_mea_no"></td>
+      </tr>
+      <tr>
+        <td class="label">ACB NO.</td><td class="fill-cell"><input type="text" data-k="g4_acb_no"></td>
+        <td class="label">RELAY NO.</td><td class="fill-cell"><input type="text" data-k="g4_relay_no"></td>
+      </tr>
+      <tr>
+        <td class="label">RELAY</td>
+        <td class="fill-cell">
+          <div class="dir-opts">
+            <label><input type="checkbox" data-k="g4_relay_mpcr"> MPCR</label>
+            <label><input type="checkbox" data-k="g4_relay_mpcv"> MPCV</label>
+            <label><input type="checkbox" data-k="g4_relay_eti"> ETI</label>
+            <label><input type="checkbox" data-k="g4_relay_other"> อื่นๆ</label>
+          </div>
+        </td>
+        <td class="label">COUNTER</td><td class="fill-cell"><input type="text" data-k="g4_counter"></td>
+      </tr>
+    </table>
+
+    <!-- CHECKLIST -->
+    <table class="checklist2" style="margin-top:-1px;">
+      <tr><td colspan="7" class="section-title">รายการตรวจสอบบำรุงรักษา</td></tr>
+      <tr>
+        <th rowspan="2" style="width:30px;">ลำดับ</th>
+        <th rowspan="2">รายการ</th>
+        <th rowspan="2">เกณฑ์</th>
+        <th colspan="2">ผลตรวจสอบ</th>
+        <th rowspan="2">ข้อบกพร่อง</th>
+        <th rowspan="2">การดำเนินการแก้ไข/เพิ่มเติม</th>
+      </tr>
+      <tr>
+        <th class="chk2">ปกติ</th><th class="chk2">ไม่ปกติ</th>
+      </tr>
+      <tbody id="sf021ChecklistBody"></tbody>
+    </table>
+
+    <!-- SUGGESTIONS -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td class="section-title">ข้อเสนอแนะ/ข้อมูลเพิ่มเติม</td></tr>
+      <tr><td class="fill-cell"><textarea data-k="sf021_note" rows="3" style="min-height:70px;"></textarea></td></tr>
+    </table>
+
+    <!-- SIGN OFF -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr>
+        <td class="label" style="width:16%;">ผู้ตรวจ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf021_checker1"></td>
+        <td class="label" style="width:16%;">ผู้ตรวจสอบ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf021_checker2"></td>
+      </tr>
+      <tr>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf021_pos1"></td>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf021_pos2"></td>
+      </tr>
+      <tr>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf021_date1"></td>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf021_date2"></td>
+      </tr>
+    </table>
+
+    <div class="footer-left">
+      <span>ปรับปรุงครั้งที่ 0 &nbsp;วันที่ ...</span>
+      <span>SF-07-0-021</span>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheetEl5" style="display:none;">
+    <h1>แบบตรวจสอบบำรุงรักษา Load Break Switch</h1>
+
+    <!-- SECTION 1: HEADER INFO -->
+    <table class="outer table-s5h">
+      <colgroup>
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+      </colgroup>
+      <tr><td colspan="8" class="section-title">1&nbsp;&nbsp;ข้อมูลทั่วไป</td></tr>
+      <tr>
+        <td class="label">Station ID</td><td class="fill-cell"><input type="text" data-k="g5_station_id"></td>
+        <td class="label">GIS&nbsp;&nbsp;Lat.</td><td class="fill-cell"><input type="text" data-k="g5_gis_lat"></td>
+        <td class="label">Long.</td><td class="fill-cell" colspan="3"><input type="text" data-k="g5_gis_long"></td>
+      </tr>
+      <tr>
+        <td class="label">สถานที่</td><td class="fill-cell" colspan="7"><input type="text" data-k="g5_location"></td>
+      </tr>
+      <tr>
+        <td class="label">ยี่ห้อ LBS</td><td class="fill-cell"><input type="text" data-k="g5_lbs_brand"></td>
+        <td class="label">LBS MEA No.</td><td class="fill-cell"><input type="text" data-k="g5_lbs_mea"></td>
+        <td class="label">Switch No.</td><td class="fill-cell" colspan="3"><input type="text" data-k="g5_switch_no"></td>
+      </tr>
+      <tr>
+        <td class="label">ยี่ห้อ VT</td><td class="fill-cell"><input type="text" data-k="g5_vt_brand"></td>
+        <td class="label">VT MEA No.</td><td class="fill-cell"><input type="text" data-k="g5_vt_mea"></td>
+        <td class="label">ตู้ OFDF No.</td><td class="fill-cell" colspan="3"><input type="text" data-k="g5_ofdf_no"></td>
+      </tr>
+    </table>
+
+    <!-- SECTION 2 -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td colspan="4" class="section-title">2&nbsp;&nbsp;รายการตรวจสอบบำรุงรักษา</td></tr>
+      <tr>
+        <td class="fill-cell" style="width:16%;">- สถานะสวิตช์</td>
+        <td class="fill-cell radio-row" colspan="3">
+          <label><input type="checkbox" data-group="sw_status" data-val="open"> ปลด</label>
+          <label><input type="checkbox" data-group="sw_status" data-val="closed"> สับ</label>
+        </td>
+      </tr>
+      <tr>
+        <td class="fill-cell">- สถานะระบบ SCADA/EMS/DMS</td>
+        <td class="fill-cell radio-row" colspan="3">
+          <label><input type="checkbox" data-group="scada_status" data-val="online"> online</label>
+          <label><input type="checkbox" data-group="scada_status" data-val="offline"> offline</label>
+        </td>
+      </tr>
+    </table>
+
+    <table class="checklist" style="margin-top:-1px;">
+      <tr>
+        <th rowspan="2" style="width:36px;">&nbsp;</th>
+        <th rowspan="2">รายการ</th>
+        <th colspan="3">ผลการตรวจสอบ</th>
+        <th rowspan="2">ข้อบกพร่อง</th>
+      </tr>
+      <tr>
+        <th class="chk">ปกติ</th><th class="chk">ชำรุด</th><th class="chk">ไม่มี</th>
+      </tr>
+      <tbody id="sf016ChecklistBody"></tbody>
+    </table>
+
+    <!-- SECTION 3 -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td class="section-title">3&nbsp;&nbsp;สิ่งที่ต้องปรับปรุงหรือข้อมูลเพิ่มเติม :</td></tr>
+      <tr><td class="fill-cell"><textarea data-k="sf016_note3" rows="2" style="min-height:50px;"></textarea></td></tr>
+    </table>
+
+    <!-- SECTION 4 -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td class="section-title">4&nbsp;&nbsp;การปรับปรุงข้อบกพร่อง :</td></tr>
+      <tr><td class="fill-cell"><textarea data-k="sf016_note4" rows="2" style="min-height:50px;"></textarea></td></tr>
+    </table>
+
+    <!-- SIGN OFF -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr>
+        <td class="label" style="width:16%;">ผู้ตรวจ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf016_checker1"></td>
+        <td class="label" style="width:16%;">ผู้ตรวจสอบ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf016_checker2"></td>
+      </tr>
+      <tr>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf016_pos1"></td>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf016_pos2"></td>
+      </tr>
+      <tr>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf016_date1"></td>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf016_date2"></td>
+      </tr>
+    </table>
+
+    <div class="footer-left">
+      <span>ปรับปรุงครั้งที่ 0 &nbsp;วันที่ ...</span>
+      <span>SF-07-0-016</span>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheetEl6" style="display:none;">
+    <h1>แบบตรวจสอบบำรุงรักษา Sectionalizer</h1>
+
+    <!-- SECTION 1: HEADER INFO -->
+    <table class="outer table-s5h">
+      <colgroup>
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+      </colgroup>
+      <tr><td colspan="8" class="section-title">1&nbsp;&nbsp;ข้อมูลทั่วไป</td></tr>
+      <tr>
+        <td class="label">Station ID</td><td class="fill-cell"><input type="text" data-k="g6_station_id"></td>
+        <td class="label">GIS&nbsp;&nbsp;Lat.</td><td class="fill-cell"><input type="text" data-k="g6_gis_lat"></td>
+        <td class="label">Long.</td><td class="fill-cell" colspan="3"><input type="text" data-k="g6_gis_long"></td>
+      </tr>
+      <tr>
+        <td class="label">สถานที่</td><td class="fill-cell" colspan="7"><input type="text" data-k="g6_location"></td>
+      </tr>
+      <tr>
+        <td class="label">ยี่ห้อ SZ</td><td class="fill-cell"><input type="text" data-k="g6_sz_brand"></td>
+        <td class="label">SZ MEA No.</td><td class="fill-cell"><input type="text" data-k="g6_sz_mea"></td>
+        <td class="label">Switch No.</td><td class="fill-cell" colspan="3"><input type="text" data-k="g6_switch_no"></td>
+      </tr>
+    </table>
+
+    <!-- SECTION 2 -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td colspan="2" class="section-title">2&nbsp;&nbsp;รายการตรวจสอบบำรุงรักษา</td></tr>
+      <tr>
+        <td class="fill-cell" style="width:16%;">- สถานะสวิตช์</td>
+        <td class="fill-cell radio-row">
+          <label><input type="checkbox" data-group="sz_sw_status" data-val="open"> ปลด</label>
+          <label><input type="checkbox" data-group="sz_sw_status" data-val="closed"> สับ</label>
+        </td>
+      </tr>
+    </table>
+
+    <table class="checklist" style="margin-top:-1px;">
+      <tr>
+        <th rowspan="2" style="width:36px;">&nbsp;</th>
+        <th rowspan="2">รายการ</th>
+        <th colspan="3">ผลการตรวจสอบ</th>
+        <th rowspan="2">ข้อบกพร่อง</th>
+      </tr>
+      <tr>
+        <th class="chk">ปกติ</th><th class="chk">ชำรุด</th><th class="chk">ไม่มี</th>
+      </tr>
+      <tbody id="sf017ChecklistBody"></tbody>
+    </table>
+
+    <!-- SECTION 3 -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td class="section-title">3&nbsp;&nbsp;สิ่งที่ต้องปรับปรุงหรือข้อมูลเพิ่มเติม :</td></tr>
+      <tr><td class="fill-cell"><textarea data-k="sf017_note3" rows="2" style="min-height:50px;"></textarea></td></tr>
+    </table>
+
+    <!-- SECTION 4 -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td class="section-title">4&nbsp;&nbsp;การปรับปรุงข้อบกพร่อง :</td></tr>
+      <tr><td class="fill-cell"><textarea data-k="sf017_note4" rows="2" style="min-height:50px;"></textarea></td></tr>
+    </table>
+
+    <!-- SIGN OFF -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr>
+        <td class="label" style="width:16%;">ผู้ตรวจ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf017_checker1"></td>
+        <td class="label" style="width:16%;">ผู้ตรวจสอบ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf017_checker2"></td>
+      </tr>
+      <tr>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf017_pos1"></td>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf017_pos2"></td>
+      </tr>
+      <tr>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf017_date1"></td>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf017_date2"></td>
+      </tr>
+    </table>
+
+    <div class="footer-left">
+      <span>ปรับปรุงครั้งที่ 0 &nbsp;วันที่ ...</span>
+      <span>SF-07-0-017</span>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheetEl7" style="display:none;">
+    <h1>แบบตรวจสอบบำรุงรักษา Ring Main Unit (RMU)</h1>
+
+    <!-- SECTION 1: HEADER INFO -->
+    <table class="outer table-s5h">
+      <colgroup>
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+      </colgroup>
+      <tr><td colspan="8" class="section-title">1&nbsp;&nbsp;ข้อมูลทั่วไป</td></tr>
+      <tr>
+        <td class="label">Station ID</td><td class="fill-cell"><input type="text" data-k="g7_station_id"></td>
+        <td class="label">GIS&nbsp;&nbsp;Lat.</td><td class="fill-cell"><input type="text" data-k="g7_gis_lat"></td>
+        <td class="label">Long.</td><td class="fill-cell" colspan="3"><input type="text" data-k="g7_gis_long"></td>
+      </tr>
+      <tr>
+        <td class="label">สถานที่</td><td class="fill-cell" colspan="7"><input type="text" data-k="g7_location"></td>
+      </tr>
+      <tr>
+        <td class="label">ยี่ห้อ RMU</td><td class="fill-cell"><input type="text" data-k="g7_rmu_brand"></td>
+        <td class="label">RMU MEA No.</td><td class="fill-cell" colspan="5"><input type="text" data-k="g7_rmu_mea"></td>
+      </tr>
+    </table>
+
+    <!-- CHECKLIST -->
+    <table class="checklist" style="margin-top:-1px;">
+      <tr><td colspan="6" class="section-title">2&nbsp;&nbsp;รายการตรวจสอบบำรุงรักษา</td></tr>
+      <tr>
+        <th rowspan="2" style="width:36px;">&nbsp;</th>
+        <th rowspan="2">รายการ</th>
+        <th colspan="3">ผลการตรวจสอบ</th>
+        <th rowspan="2">ข้อบกพร่อง</th>
+      </tr>
+      <tr>
+        <th class="chk">ปกติ</th><th class="chk">ชำรุด</th><th class="chk">ไม่มี</th>
+      </tr>
+      <tbody id="sf018ChecklistBody"></tbody>
+    </table>
+
+    <!-- SECTION 3 -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td class="section-title">3&nbsp;&nbsp;สิ่งที่ต้องปรับปรุงหรือข้อมูลเพิ่มเติม :</td></tr>
+      <tr><td class="fill-cell"><textarea data-k="sf018_note3" rows="2" style="min-height:50px;"></textarea></td></tr>
+    </table>
+
+    <!-- SECTION 4 -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td class="section-title">4&nbsp;&nbsp;การปรับปรุงข้อบกพร่อง :</td></tr>
+      <tr><td class="fill-cell"><textarea data-k="sf018_note4" rows="2" style="min-height:50px;"></textarea></td></tr>
+    </table>
+
+    <!-- SIGN OFF -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr>
+        <td class="label" style="width:16%;">ผู้ตรวจ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf018_checker1"></td>
+        <td class="label" style="width:16%;">ผู้ตรวจสอบ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf018_checker2"></td>
+      </tr>
+      <tr>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf018_pos1"></td>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf018_pos2"></td>
+      </tr>
+      <tr>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf018_date1"></td>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf018_date2"></td>
+      </tr>
+    </table>
+
+    <div class="footer-left">
+      <span>ปรับปรุงครั้งที่ 0 &nbsp;วันที่ ...</span>
+      <span>SF-07-0-018</span>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheetEl8" data-multipage="true" style="display:none;">
+    <h1>แบบตรวจสอบบำรุงรักษา UNITSUBSTATION</h1>
+
+    <!-- SECTION 1: HEADER INFO -->
+    <table class="outer table-s5h">
+      <colgroup>
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+        <col style="width:11%;"><col style="width:14%;">
+      </colgroup>
+      <tr><td colspan="8" class="section-title">1&nbsp;&nbsp;ข้อมูลทั่วไป</td></tr>
+      <tr>
+        <td class="label">Station ID</td><td class="fill-cell"><input type="text" data-k="g8_station_id"></td>
+        <td class="label">GIS&nbsp;&nbsp;Lat.</td><td class="fill-cell"><input type="text" data-k="g8_gis_lat"></td>
+        <td class="label">Long.</td><td class="fill-cell" colspan="3"><input type="text" data-k="g8_gis_long"></td>
+      </tr>
+      <tr>
+        <td class="label">สถานที่</td><td class="fill-cell" colspan="7"><input type="text" data-k="g8_location"></td>
+      </tr>
+      <tr>
+        <td class="label">ยี่ห้อ TR</td><td class="fill-cell"><input type="text" data-k="g8_tr_brand"></td>
+        <td class="label">TR MEA No.</td><td class="fill-cell" colspan="5"><input type="text" data-k="g8_tr_mea"></td>
+      </tr>
+      <tr>
+        <td class="label">ยี่ห้อ RMU</td><td class="fill-cell"><input type="text" data-k="g8_rmu_brand"></td>
+        <td class="label">RMU MEA No.</td><td class="fill-cell" colspan="5"><input type="text" data-k="g8_rmu_mea"></td>
+      </tr>
+    </table>
+
+    <!-- CHECKLIST -->
+    <table class="checklist" style="margin-top:-1px;">
+      <tr><td colspan="6" class="section-title">2&nbsp;&nbsp;รายการตรวจสอบบำรุงรักษา</td></tr>
+      <tr>
+        <th rowspan="2" style="width:36px;">&nbsp;</th>
+        <th rowspan="2">รายการ</th>
+        <th colspan="3">ผลการตรวจสอบ</th>
+        <th rowspan="2">ข้อบกพร่อง</th>
+      </tr>
+      <tr>
+        <th class="chk">ปกติ</th><th class="chk">ชำรุด</th><th class="chk">ไม่มี</th>
+      </tr>
+      <tbody id="sf019ChecklistBody"></tbody>
+    </table>
+
+    <!-- Section 3 continues naturally onto page 2 when printed -->
+    <div class="section3-anchor"></div>
+
+    <!-- SECTION 3: ELECTRICAL MEASUREMENTS -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td colspan="6" class="section-title">3&nbsp;&nbsp;ตรวจสอบวัดกระแสและแรงดันไฟฟ้า (ด้านแรงต่ำ)</td></tr>
+      <tr>
+        <td colspan="6" class="radio-row fill-cell">
+          <label><input type="checkbox" data-k="g8_day"> กลางวัน</label>
+          <label><input type="checkbox" data-k="g8_night"> กลางคืน</label>
+          &nbsp;&nbsp;เวลา : <input type="text" data-k="g8_time" style="width:90px;display:inline-block;">
+          &nbsp;&nbsp;วิธีการ:
+          <label><input type="checkbox" data-k="g8_onsite"> วัดหน้างาน</label>
+          <label><input type="checkbox" data-k="g8_tlm"> TLM</label>
+        </td>
+      </tr>
+      <tr>
+        <td class="label">แรงดันไฟฟ้า(V)</td>
+        <td class="fill-cell">V1-N= <input type="text" data-k="g8_v1n" style="width:70px;display:inline-block;"></td>
+        <td class="fill-cell">V2-N= <input type="text" data-k="g8_v2n" style="width:70px;display:inline-block;"></td>
+        <td class="fill-cell">V3-N= <input type="text" data-k="g8_v3n" style="width:70px;display:inline-block;"></td>
+        <td class="fill-cell">V1-2= <input type="text" data-k="g8_v12" style="width:70px;display:inline-block;"></td>
+        <td class="fill-cell">V1-3= V2-3= <input type="text" data-k="g8_v13_23" style="width:60px;display:inline-block;"></td>
+      </tr>
+      <tr>
+        <td class="label">กระแสไฟฟ้า(A)</td>
+        <td class="fill-cell">IN= <input type="text" data-k="g8_in" style="width:70px;display:inline-block;"></td>
+        <td class="fill-cell">I1= <input type="text" data-k="g8_i1" style="width:70px;display:inline-block;"></td>
+        <td class="fill-cell">I2= <input type="text" data-k="g8_i2" style="width:70px;display:inline-block;"></td>
+        <td class="fill-cell">I3= <input type="text" data-k="g8_i3" style="width:70px;display:inline-block;"></td>
+        <td class="fill-cell">ผลรวมกระแสหน้าหม้อแปลงฯ ทั้งหมด <input type="text" data-k="g8_i_total" style="width:60px;display:inline-block;"></td>
+      </tr>
+    </table>
+
+    <!-- SECTION 4 -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td class="section-title">4&nbsp;&nbsp;สิ่งที่ต้องปรับปรุงหรือข้อมูลเพิ่มเติม :</td></tr>
+      <tr><td class="fill-cell"><textarea data-k="sf019_note4" rows="3" style="min-height:80px;"></textarea></td></tr>
+    </table>
+
+    <!-- SECTION 5 -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr><td class="section-title">5&nbsp;&nbsp;การปรับปรุงข้อบกพร่อง :</td></tr>
+      <tr><td class="fill-cell"><textarea data-k="sf019_note5" rows="3" style="min-height:80px;"></textarea></td></tr>
+    </table>
+
+    <!-- SIGN OFF -->
+    <table class="outer" style="margin-top:-1px;">
+      <tr>
+        <td class="label" style="width:16%;">ผู้ตรวจ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf019_checker1"></td>
+        <td class="label" style="width:16%;">ผู้ตรวจสอบ</td><td class="fill-cell" style="width:34%;"><input type="text" data-k="sf019_checker2"></td>
+      </tr>
+      <tr>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf019_pos1"></td>
+        <td class="label">ตำแหน่ง</td><td class="fill-cell"><input type="text" data-k="sf019_pos2"></td>
+      </tr>
+      <tr>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf019_date1"></td>
+        <td class="label">วันที่</td><td class="fill-cell"><input type="text" data-k="sf019_date2"></td>
+      </tr>
+    </table>
+
+    <div class="footer-left">
+      <span>ปรับปรุงครั้งที่ 0 &nbsp;วันที่ ...</span>
+      <span>SF-07-0-019</span>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+  import {
+    getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
+    serverTimestamp, arrayUnion, arrayRemove
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+  // ---- Firebase config ----
+  const firebaseConfig = {
+    apiKey: "AIzaSyCAjbkL1gPACvPrxNwxTKpk72UedhtC-Bo",
+    authDomain: "inspection-asset.firebaseapp.com",
+    projectId: "inspection-asset",
+    storageBucket: "inspection-asset.firebasestorage.app",
+    messagingSenderId: "749137941986",
+    appId: "1:749137941986:web:8d9685658a9ac6391b55bb"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  let currentUser = null;
+  let currentRecordId = null;
+  let activeForm = 'sf015'; // 'sf015' or 'sf022'
+  const ADMIN_EMAIL = 'mplusgood@gmail.com';
+  let allowedEmails = [];
+
+  // ---- Checklist rows (rendered dynamically) ----
+  const items = [
+    "Drop Fuse",
+    "Station Post Type Insulator",
+    "สายเข้า-ออก Drop Fuse",
+    "คอนสาย",
+    "อุปกรณ์ป้องกันสัตว์",
+    "Low Voltage Capacitor",
+    "กับดักฟ้าผ่า (L/A)",
+    "ตัวถังหม้อแปลง",
+    "Bushing HV-LV",
+    "Cover (Bushing ,L/A,Term. kit)",
+    "สายหน้าหม้อแปลง LV",
+    "LV Ground",
+    "HV Ground",
+    "CT-TLM Meter (ถ้ามี)"
+  ];
+
+  const tbody = document.getElementById('checklistBody');
+  items.forEach((name, idx) => {
+    const n = idx + 1;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="item-num">2.${n}</td>
+      <td class="item-name">${name}</td>
+      <td class="chk"><input type="checkbox" data-group="item${n}" data-val="normal"></td>
+      <td class="chk"><input type="checkbox" data-group="item${n}" data-val="damaged"></td>
+      <td class="chk"><input type="checkbox" data-group="item${n}" data-val="none"></td>
+      <td class="defect"><input type="text" data-k="defect${n}"></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // ---- Form 2 (SF-07-0-022) checklist rows ----
+  const sf022Items = [
+    { header: '1', title: 'สวิทซ์แรงกลาง' },
+    { id: '1_1', no: '1.1', name: 'สภาพภายนอก', criteria: 'ไม่มีรอยแตก ปลด-สับได้' },
+    { id: '1_2', no: '1.2', name: 'ก๊าซ SF6', criteria: 'อยู่ในโซนที่กำหนด' },
+    { id: '1_3', no: '1.3', name: 'หัวต่อสาย/สายไฟฟ้า', criteria: 'ไม่มีรอยบิ่น ไหม้หรือแตกร้าว' },
+    { id: '1_4', no: '1.4', name: 'ระบบกราวด์', criteria: 'มีกราวด์ทั้งแรงสูง แรงต่ำ' },
+    { header: '2', title: 'หม้อแปลง' },
+    { id: '2_1', no: '2.1', name: 'ตัวถัง', criteria: 'ไม่มีรอยแตก บุบ ฉีกขาด' },
+    { id: '2_2', no: '2.2', name: 'น้ำมัน', criteria: 'ไม่รั่วไหล อยู่ในระดับที่กำหนด' },
+    { id: '2_3', no: '2.3', name: 'ฟิวส์ 12 kV', criteria: 'ไม่ชำรุด', extra: [{ v: 'a', t: 'ไม่ชำรุด' }, { v: 'b', t: 'ไม่มี' }] },
+    { id: '2_4', no: '2.4', name: 'อุณหภูมิสูงสุด', criteria: 'ไม่เกิน 90 °C', extra: [{ v: 'a', t: 'ไม่เกิน 90 °C' }, { v: 'b', t: 'ไม่มีเกจ' }] },
+    { id: '2_5', no: '2.5', name: 'อุณหภูมิจริง', criteria: 'ไม่เกิน 90 °C', extra: [{ v: 'a', t: 'ไม่เกิน 90 °C' }, { v: 'b', t: 'ไม่มีเกจ' }] },
+    { header: '3', title: 'ด้านแรงต่ำ' },
+    { id: '3_1', no: '3.1', name: 'สายไฟฟ้า', criteria: 'ไม่มีจุดชำรุดเสียหาย' },
+    { id: '3_2', no: '3.2', name: 'คาปาซิเตอร์แรงต่ำ', criteria: 'ไม่มีจุดชำรุดเสียหาย' }
+  ];
+
+  const sf022Body = document.getElementById('sf022ChecklistBody');
+  sf022Items.forEach(item => {
+    const tr = document.createElement('tr');
+    if (item.header) {
+      tr.innerHTML = `<td class="num sec-head">${item.header}</td><td class="sec-head" colspan="6">${item.title}</td>`;
+    } else {
+      let criteriaHtml = item.criteria;
+      if (item.extra) {
+        criteriaHtml = `<div class="criteria-extra">` + item.extra.map(ex =>
+          `<label><input type="checkbox" data-group="extra_${item.id}" data-val="${ex.v}"> ${ex.t}</label>`
+        ).join('') + `</div>`;
+      }
+      tr.innerHTML = `
+        <td class="num">${item.no}</td>
+        <td class="item">${item.name}</td>
+        <td class="criteria">${criteriaHtml}</td>
+        <td class="chk2"><input type="checkbox" data-group="chk_${item.id}" data-val="normal"></td>
+        <td class="chk2"><input type="checkbox" data-group="chk_${item.id}" data-val="abnormal"></td>
+        <td class="fill-cell"><input type="text" data-k="def_${item.id}"></td>
+        <td class="fill-cell"><input type="text" data-k="act_${item.id}"></td>
+      `;
+    }
+    sf022Body.appendChild(tr);
+  });
+
+  // ---- Form 2 electrical measurement rows ----
+  const sf022Meas = [
+    { label: 'ผลการวัดกระแสไฟฟ้าด้านแรงกลาง 12 kV', k: 'ikv12', l: ['IR (A)', 'IY (A)', 'IB (A)'], range: '< 25A' },
+    { label: 'ผลการวัดกระแสไฟฟ้าคาปาซิเตอร์ 25 kVAR', k: 'cap25', l: ['IPh1 (A)', 'IPh2 (A)', 'IPh3 (A)'], range: '28A-40A' },
+    { label: 'ผลการวัดกระแสไฟฟ้าคาปาซิเตอร์ 50 kVAR', k: 'cap50', l: ['IPh1 (A)', 'IPh2 (A)', 'IPh3 (A)'], range: '57A-80A' },
+    { label: 'ผลการวัดกระแสไฟฟ้าคาปาซิเตอร์ 75 kVAR', k: 'cap75', l: ['IPh1 (A)', 'IPh2 (A)', 'IPh3 (A)'], range: '86A-119A' },
+    { label: 'ผลการวัดแรงดันด้านแรงต่ำ (V)', k: 'vln', l: ['V1N', 'V2N', 'V3N'], range: '214V-237V' },
+    { label: 'ผลการวัดแรงดันด้านแรงต่ำ (V)', k: 'vll', l: ['V1-2', 'V1-3', 'V2-3'], range: '371V-410V' }
+  ];
+  const sf022MeasBody = document.getElementById('sf022MeasBody');
+  sf022Meas.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mlabel">${row.label}</td>
+      <td>${row.l[0]} <input type="text" data-k="meas_${row.k}_1"></td>
+      <td>${row.l[1]} <input type="text" data-k="meas_${row.k}_2"></td>
+      <td>${row.l[2]} <input type="text" data-k="meas_${row.k}_3"></td>
+      <td class="mrange">${row.range}</td>
+      <td></td>
+    `;
+    sf022MeasBody.appendChild(tr);
+  });
+
+  // ---- Form 2 current-direction sets ----
+  const sf022DirBody = document.getElementById('sf022DirBody');
+  for (let n = 1; n <= 6; n++) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="dirset">ชุดที่ ${n}</td>
+      <td>
+        <div class="dir-opts">
+          <label><input type="checkbox" data-group="dirset${n}" data-val="left"> ซ้าย</label>
+          <label><input type="checkbox" data-group="dirset${n}" data-val="right"> ขวา</label>
+          <label><input type="checkbox" data-group="dirset${n}" data-val="front"> หน้า</label>
+          <label><input type="checkbox" data-group="dirset${n}" data-val="back"> หลัง</label>
+        </div>
+      </td>
+      <td><input type="text" data-k="dirset${n}_iph1"></td>
+      <td><input type="text" data-k="dirset${n}_iph2"></td>
+      <td><input type="text" data-k="dirset${n}_iph3"></td>
+      <td><input type="text" data-k="dirset${n}_in"></td>
+      <td></td>
+    `;
+    sf022DirBody.appendChild(tr);
+  }
+
+  // ---- Form 3 (SF-07-0-023) oil test rounds ----
+  const sf023Rounds = [
+    {
+      n: 1,
+      title: 'ทดสอบน้ำมันหม้อแปลงด้วยเครื่องทดสอบ โดยทดสอบ 5 ครั้ง ห่างครั้งละ 5 นาที',
+      notes: [
+        '*ทดสอบครั้งที่ 1 ถ้าต่ำกว่า 26 kV ดำเนินการกรองน้ำมัน',
+        'หากเกินกว่า 26 kV ทดสอบให้ครบ 5 ครั้ง แล้วหาค่าเฉลี่ย ถ้ายังต่ำกว่า 26 kV ดำเนินการกรองน้ำมัน'
+      ]
+    },
+    {
+      n: 2,
+      title: 'กรองน้ำมันครั้งที่ 1 แล้วดำเนินการทดสอบใหม่',
+      notes: [
+        '*ทดสอบครั้งที่ 1 ถ้าต่ำกว่า 26 kV ดำเนินการกรองน้ำมัน',
+        'หากเกินกว่า 26 kV ทดสอบให้ครบ 5 ครั้ง แล้วหาค่าเฉลี่ย ถ้ายังต่ำกว่า 26 kV ดำเนินการกรองน้ำมันครั้งที่ 2'
+      ]
+    },
+    {
+      n: 3,
+      title: 'กรองน้ำมันครั้งที่ 2 แล้วดำเนินการทดสอบใหม่',
+      notes: [
+        '*ทดสอบครบ 5 ครั้ง ถ้าต่ำกว่า 26 kV ให้หาแนวทางแก้ไขต่อไป'
+      ]
+    }
+  ];
+
+  const sf023RoundsEl = document.getElementById('sf023Rounds');
+  sf023Rounds.forEach(round => {
+    const wrap = document.createElement('div');
+    wrap.className = 'oil-round';
+    const numCells = [1, 2, 3, 4, 5].map(i =>
+      `<td class="round-num">${i}</td>`
+    ).join('');
+    const inputCells = [1, 2, 3, 4, 5].map(i =>
+      `<td><input type="text" data-k="r${round.n}_bd${i}"></td>`
+    ).join('');
+    wrap.innerHTML = `
+      <table>
+        <tr><td class="round-head" style="width:8%;">${round.n}</td><td class="round-head" colspan="6">${round.title}</td></tr>
+        <tr>
+          <td class="round-label">ครั้งที่</td>
+          ${numCells}
+          <td class="round-avg">ค่าเฉลี่ย</td>
+        </tr>
+        <tr>
+          <td class="round-label">Breakdown Voltage (kV)</td>
+          ${inputCells}
+          <td class="round-avg"><input type="text" data-k="r${round.n}_avg"></td>
+        </tr>
+        <tr><td colspan="7" class="oil-note">${round.notes.join('<br>')}</td></tr>
+      </table>
+    `;
+    sf023RoundsEl.appendChild(wrap);
+  });
+
+  // ---- Form 4 (SF-07-0-021) checklist rows ----
+  const sf021Items = [
+    { header: '1', title: 'สภาพภายนอก' },
+    { id: '1_1', no: '1.1', name: 'สถานะ MV.SW.', criteria: 'CLOSE' },
+    { id: '1_2', no: '1.2', name: 'สถานะ NP', criteria: 'CLOSE' },
+    { id: '1_3', no: '1.3', name: 'เบอร์ตู้/ สีตู้', criteria: 'ชัดเจน ไม่ลอก' },
+    { id: '1_4', no: '1.4', name: 'ระบบกราวด์', criteria: 'มีทั้งกราวด์ N และ G' },
+    { id: '1_5', no: '1.5', name: 'อุปกรณ์ป้องกันแรงดันเกินภายนอก', criteria: 'มีทั้งด้าน N และ T ไม่ชำรุด' },
+    { id: '1_6', no: '1.6', name: 'ตัวถัง รอยต่อหม้อแปลง', criteria: 'ไม่เสียหาย/ไม่มีน้ำมันรั่วซึม' },
+    { id: '1_7', no: '1.7', name: 'ฝาตู้', criteria: 'ปิดแน่นสนิท' },
+    { id: '1_8', no: '1.8', name: 'มีการแขวนป้ายแดงห้ามปลด-สับ', tags: [{ k: 'sw', t: 'ที่ SW' }, { k: 'np', t: 'ที่ NP' }] },
+    { header: '2', title: 'การทดสอบโดยปลด-สับ MV.SW.', note: '*ทดสอบเมื่อสายป้อนจ่ายไฟและ NP CLOSE อยู่เท่านั้น' },
+    { id: '2_1', no: '2.1', name: 'ปลด MV.SW. ครั้งที่ 1', criteria: 'NP OPEN' },
+    { id: '2_2', no: '2.2', name: 'สับ MV.SW. ครั้งที่ 1', criteria: 'NP CLOSE' },
+    { id: '2_3', no: '2.3', name: 'ปลด MV.SW. ครั้งที่ 2', criteria: 'NP OPEN' },
+    { header: '3', title: 'สภาพภายใน' },
+    { id: '3_1', no: '3.1', name: 'อุปกรณ์ภายใน', criteria: 'ไม่มีน้ำหรือหยดน้ำเกาะ' },
+    { id: '3_2', no: '3.2', name: 'รีเลย์', criteria: 'อยู่ในสถานะถูกต้อง' },
+    { header: '4', title: 'อุปกรณ์ส่งข้อมูลระยะไกล' },
+    { id: '4_1', no: '4.1', name: 'ตู้อุปกรณ์', criteria: 'ไม่ชำรุดเสียหาย' },
+    { id: '4_2', no: '4.2', name: 'ไฟเลี้ยง /CB & FUSE', criteria: 'มีไฟเลี้ยง / CB&FUSE สับอยู่' },
+    { id: '4_3', no: '4.3', name: 'อินเตอร์เน็ตสวิตช์', criteria: 'ไม่ชำรุดเสียหาย' },
+    { id: '5', no: '5', name: 'สับ SW.แรงกลาง เมื่อลงจากเสาแล้ว', criteria: 'NP CLOSE' }
+  ];
+
+  const sf021Body = document.getElementById('sf021ChecklistBody');
+  sf021Items.forEach(item => {
+    const tr = document.createElement('tr');
+    if (item.header) {
+      const noteHtml = item.note ? `<div class="criteria-extra" style="font-style:italic;">${item.note}</div>` : '';
+      tr.innerHTML = `<td class="num sec-head">${item.header}</td><td class="sec-head" colspan="6">${item.title}${noteHtml}</td>`;
+    } else {
+      let criteriaHtml = item.criteria || '';
+      if (item.tags) {
+        criteriaHtml = `<div class="criteria-extra">` + item.tags.map(tag =>
+          `<label><input type="checkbox" data-k="tag_${item.id}_${tag.k}"> ${tag.t}</label>`
+        ).join('') + `</div>`;
+      }
+      tr.innerHTML = `
+        <td class="num">${item.no}</td>
+        <td class="item">${item.name}</td>
+        <td class="criteria">${criteriaHtml}</td>
+        <td class="chk2"><input type="checkbox" data-group="chk4_${item.id}" data-val="normal"></td>
+        <td class="chk2"><input type="checkbox" data-group="chk4_${item.id}" data-val="abnormal"></td>
+        <td class="fill-cell"><input type="text" data-k="def4_${item.id}"></td>
+        <td class="fill-cell"><input type="text" data-k="act4_${item.id}"></td>
+      `;
+    }
+    sf021Body.appendChild(tr);
+  });
+
+  // ---- Form 5 (SF-07-0-016) checklist rows ----
+  const sf016Items = [
+    { id: '1', no: '2.1', name: 'ตัวถัง LBS /สลักล็อคการปลดสับ', hasNone: false },
+    { id: '2', no: '2.2', name: 'สถานะก๊าซ SF6', hasNone: false },
+    { id: '3', no: '2.3', name: 'Bushing' },
+    { id: '4', no: '2.4', name: 'กับดักฟ้าผ่า' },
+    { id: '5', no: '2.5', name: 'VT' },
+    { id: '6', no: '2.6', name: 'Drop Fuse ลง VT' },
+    { id: '7', no: '2.7', name: 'คอนสาย' },
+    { id: '8', no: '2.8', name: 'สายควบคุม LBS' },
+    { id: '9', no: '2.9', name: 'อุปกรณ์ป้องกันสัตว์' },
+    { header: 'ตู้ Control /FRTU /Ground' },
+    { id: '10', no: '2.10', name: 'ไฟสถานะหน้าตู้' },
+    { id: '11', no: '2.11', name: 'แหล่งจ่ายไฟฟ้า และสายควบคุม' },
+    { id: '12', no: '2.12', name: 'สภาพแบตเตอรี่หรือ Capacitor' },
+    { id: '13', no: '2.13', name: 'Ground HV (L/A, LBS)' },
+    { id: '14', no: '2.14', name: 'Ground LV (ตู้ Control)' },
+    { header: 'ทดสอบ ปลด/สับ' },
+    { id: '15', no: '2.15', name: 'ทดสอบ ทาง Remote' },
+    { id: '16', no: '2.16', name: 'ทดสอบ ทาง Local' },
+    { header: 'ทดสอบระบบ ATS (ถ้ามี)' },
+    { id: '17', no: '2.17', name: 'แรงดันไฟฟ้าเลี้ยงอุปกรณ์' },
+    { id: '18', no: '2.18', name: 'การทดสอบ ATS' }
+  ];
+
+  const sf016Body = document.getElementById('sf016ChecklistBody');
+  sf016Items.forEach(item => {
+    const tr = document.createElement('tr');
+    if (item.header) {
+      tr.innerHTML = `<td colspan="6" style="font-weight:600; text-decoration:underline; background:#fafafa;">${item.header}</td>`;
+    } else {
+      const noneCell = item.hasNone === false
+        ? `<td class="chk"></td>`
+        : `<td class="chk"><input type="checkbox" data-group="item5_${item.id}" data-val="none"></td>`;
+      tr.innerHTML = `
+        <td class="item-num">${item.no}</td>
+        <td class="item-name">${item.name}</td>
+        <td class="chk"><input type="checkbox" data-group="item5_${item.id}" data-val="normal"></td>
+        <td class="chk"><input type="checkbox" data-group="item5_${item.id}" data-val="damaged"></td>
+        ${noneCell}
+        <td class="defect"><input type="text" data-k="defect5_${item.id}"></td>
+      `;
+    }
+    sf016Body.appendChild(tr);
+  });
+
+  // ---- Form 6 (SF-07-0-017) checklist rows ----
+  const sf017Items = [
+    { header: 'สภาพ SZ และอุปกรณ์ประกอบ' },
+    { id: '1', no: '2.1', name: 'ตัวถัง SZ /สลักล็อคการปลดสับ' },
+    { id: '2', no: '2.2', name: 'สถานะก๊าซ SF6' },
+    { id: '3', no: '2.3', name: 'Bushing' },
+    { id: '4', no: '2.4', name: 'กับดักฟ้าผ่า' },
+    { id: '5', no: '2.5', name: 'คอนสาย' },
+    { id: '6', no: '2.6', name: 'สายควบคุม SZ' },
+    { id: '7', no: '2.7', name: 'อุปกรณ์ป้องกันสัตว์' },
+    { header: 'ตู้ Control /Ground' },
+    { id: '8', no: '2.8', name: 'ไฟสถานะหน้าตู้' },
+    { id: '9', no: '2.9', name: 'แหล่งจ่ายไฟฟ้า และสายควบคุม' },
+    { id: '10', no: '2.10', name: 'สภาพแบตเตอรี่หรือ Capacitor' },
+    { id: '11', no: '2.11', name: 'Ground HV (L/A, SZ)' },
+    { id: '12', no: '2.12', name: 'Ground LV (ตู้ Control)' },
+    { header: 'ทดสอบ ปลด/สับ' },
+    { id: '13', no: '2.13', name: 'ทดลอง ทาง Local' }
+  ];
+
+  const sf017Body = document.getElementById('sf017ChecklistBody');
+  sf017Items.forEach(item => {
+    const tr = document.createElement('tr');
+    if (item.header) {
+      tr.innerHTML = `<td colspan="6" style="font-weight:600; text-decoration:underline; background:#fafafa;">${item.header}</td>`;
+    } else {
+      tr.innerHTML = `
+        <td class="item-num">${item.no}</td>
+        <td class="item-name">${item.name}</td>
+        <td class="chk"><input type="checkbox" data-group="item6_${item.id}" data-val="normal"></td>
+        <td class="chk"><input type="checkbox" data-group="item6_${item.id}" data-val="damaged"></td>
+        <td class="chk"><input type="checkbox" data-group="item6_${item.id}" data-val="none"></td>
+        <td class="defect"><input type="text" data-k="defect6_${item.id}"></td>
+      `;
+    }
+    sf017Body.appendChild(tr);
+  });
+
+  // ---- Form 7 (SF-07-0-018) checklist rows ----
+  const sf018Items = [
+    { header: 'ตู้ครอบ RMU (ถ้ามีกรณีติดตั้งนอกอาคาร)' },
+    { id: '1', no: '2.1', name: 'สภาพภายนอก', hasNone: false },
+    { id: '2', no: '2.2', name: 'ประตู', hasNone: false },
+    { id: '3', no: '2.3', name: 'ฐานตู้' },
+    { header: 'RMU' },
+    { id: '4', no: '2.4', name: 'สภาพ RMU/ ห้อง', hasNone: false },
+    { id: '5', no: '2.5', name: 'ก๊าซ SF6' },
+    { id: '6', no: '2.6', name: 'ตัวแสดงสถานะสวิทซ์' },
+    { id: '7', no: '2.7', name: 'กุญแจล็อคป้องกันการปลด-สับ' },
+    { id: '8', no: '2.8', name: 'คันสับ' },
+    { id: '9', no: '2.9', name: 'ตัวตรวจสอบแรงดัน' },
+    { id: '10', no: '2.10', name: 'ตัวตรวจสอบการลัดวงจร' },
+    { header: 'ระบบการปลด-สับด้วยไฟฟ้า (ถ้ามี)', headerNoneCheckbox: true, hkey: 'elec_sw' },
+    { id: '11', no: '2.11', name: 'แรงดันไฟฟ้าเลี้ยงอุปกรณ์' },
+    { id: '12', no: '2.12', name: 'สภาพแบตเตอรี่หรือ UPS (ถ้ามี)' },
+    { id: '13', no: '2.13', name: 'FRTU (ถ้ามี)' },
+    { id: '14', no: '2.14', name: 'อุปกรณ์ควบคุมอื่นๆ' },
+    { header: 'การทดสอบการปลดสับ' },
+    { id: '15', no: '2.15', name: 'การปลดสับด้วย REMOTE (ถ้ามี)' },
+    { id: '16', no: '2.16', name: 'การปลดสับด้วย LOCAL กดปุ่ม (ถ้ามี)' },
+    { id: '17', no: '2.17', name: 'การปลดสับด้วยคันสับ' },
+    { header: 'ระบบ ATF ที่ RMU (ถ้ามี)', headerNoneCheckbox: true, hkey: 'atf' },
+    { id: '18', no: '2.18', name: 'แรงดันไฟฟ้าเลี้ยงอุปกรณ์' },
+    { id: '19', no: '2.19', name: 'การทดสอบ ATF' }
+  ];
+
+  const sf018Body = document.getElementById('sf018ChecklistBody');
+  sf018Items.forEach(item => {
+    const tr = document.createElement('tr');
+    if (item.header) {
+      if (item.headerNoneCheckbox) {
+        tr.innerHTML = `
+          <td style="font-weight:600; text-decoration:underline; background:#fafafa;"></td>
+          <td style="font-weight:600; text-decoration:underline; background:#fafafa;">${item.header}</td>
+          <td class="chk" style="background:#fafafa;"></td>
+          <td class="chk" style="background:#fafafa;"></td>
+          <td class="chk" style="background:#fafafa;"><input type="checkbox" data-k="hdrnone_${item.hkey}"></td>
+          <td style="background:#fafafa;"></td>
+        `;
+      } else {
+        tr.innerHTML = `<td colspan="6" style="font-weight:600; text-decoration:underline; background:#fafafa;">${item.header}</td>`;
+      }
+    } else {
+      const noneCell = item.hasNone === false
+        ? `<td class="chk"></td>`
+        : `<td class="chk"><input type="checkbox" data-group="item7_${item.id}" data-val="none"></td>`;
+      tr.innerHTML = `
+        <td class="item-num">${item.no}</td>
+        <td class="item-name">${item.name}</td>
+        <td class="chk"><input type="checkbox" data-group="item7_${item.id}" data-val="normal"></td>
+        <td class="chk"><input type="checkbox" data-group="item7_${item.id}" data-val="damaged"></td>
+        ${noneCell}
+        <td class="defect"><input type="text" data-k="defect7_${item.id}"></td>
+      `;
+    }
+    sf018Body.appendChild(tr);
+  });
+
+  // ---- Form 8 (SF-07-0-019) checklist rows ----
+  const sf019Items = [
+    { header: 'ตู้ครอบ Encloser' },
+    { id: '1', no: '2.1', name: 'สภาพภายนอก', hasNone: false },
+    { id: '2', no: '2.2', name: 'ประตู', hasNone: false },
+    { id: '3', no: '2.3', name: 'ฐานตู้ / นั่งร้าน', hasNone: false },
+    { header: 'RMU', headerNoneCheckbox: true, hkey: 'rmu' },
+    { id: '4', no: '2.4', name: 'สภาพ RMU', hasNone: false },
+    { id: '5', no: '2.5', name: 'ก๊าซ SF6' },
+    { id: '6', no: '2.6', name: 'ตัวแสดงสถานะสวิตช์' },
+    { id: '7', no: '2.7', name: 'กุญแจล็อคป้องกันการปลด-สับ' },
+    { id: '8', no: '2.8', name: 'คันสับ' },
+    { id: '9', no: '2.9', name: 'ตัวตรวจสอบแรงดัน' },
+    { id: '10', no: '2.10', name: 'ตัวตรวจสอบการลัดวงจร' },
+    { header: 'ระบบการปลด-สับด้วยไฟฟ้า (ถ้ามี)', headerNoneCheckbox: true, hkey: 'elec_sw' },
+    { id: '11', no: '2.11', name: 'แรงดันไฟฟ้าเลี้ยงอุปกรณ์' },
+    { id: '12', no: '2.12', name: 'สภาพแบตเตอรี่ หรือ UPS (ถ้ามี)' },
+    { id: '13', no: '2.13', name: 'FRTU (ถ้ามี)' },
+    { id: '14', no: '2.14', name: 'อุปกรณ์ควบคุมอื่นๆ' },
+    { header: 'การทดสอบการปลด-สับ' },
+    { id: '15', no: '2.15', name: 'การปลด-สับด้วย REMOTE (ถ้ามี)' },
+    { id: '16', no: '2.16', name: 'การปลด-สับด้วย LOCAL กดปุ่ม (ถ้ามี)' },
+    { id: '17', no: '2.17', name: 'การปลด-สับด้วยคันสับ' },
+    { header: 'ระบบ ATF ที่ RMU (ถ้ามี)', headerNoneCheckbox: true, hkey: 'atf' },
+    { id: '18', no: '2.18', name: 'แรงดันไฟฟ้าเลี้ยงอุปกรณ์' },
+    { id: '19', no: '2.19', name: 'การทดสอบ ATF' },
+    { header: 'หม้อแปลง' },
+    { id: '20', no: '2.20', name: 'ตัวถังหม้อแปลง', hasNone: false },
+    { id: '21', no: '2.21', name: 'Bushing HV-LV', hasNone: false },
+    { id: '22', no: '2.22', name: 'สายหน้าหม้อแปลง HV - LV', hasNone: false },
+    { id: '23', no: '2.23', name: 'LV Ground' },
+    { id: '24', no: '2.24', name: 'HV Ground' },
+    { header: 'อุปกรณ์ด้านแรงต่ำ' },
+    { id: '25', no: '2.25', name: 'สภาพทั่วไป CB หรือ FUSE' },
+    { id: '26', no: '2.26', name: 'สายไฟฟ้า' },
+    { id: '27', no: '2.27', name: 'บัสบาร์' },
+    { id: '28', no: '2.28', name: 'เครื่องวัดไฟฟ้า' },
+    { id: '29', no: '2.29', name: 'CT-TLM Meter (ถ้ามี)' },
+    { id: 'thermo', no: '', name: 'จุดร้อนแดงส่องด้วยกล้องเทอร์โมวิชั่น', hasNone: false, underline: true }
+  ];
+
+  const sf019Body = document.getElementById('sf019ChecklistBody');
+  sf019Items.forEach(item => {
+    const tr = document.createElement('tr');
+    if (item.header) {
+      if (item.headerNoneCheckbox) {
+        tr.innerHTML = `
+          <td style="font-weight:600; text-decoration:underline; background:#fafafa;"></td>
+          <td style="font-weight:600; text-decoration:underline; background:#fafafa;">${item.header}</td>
+          <td class="chk" style="background:#fafafa;"></td>
+          <td class="chk" style="background:#fafafa;"></td>
+          <td class="chk" style="background:#fafafa;"><input type="checkbox" data-k="hdrnone8_${item.hkey}"></td>
+          <td style="background:#fafafa;"></td>
+        `;
+      } else {
+        tr.innerHTML = `<td colspan="6" style="font-weight:600; text-decoration:underline; background:#fafafa;">${item.header}</td>`;
+      }
+    } else {
+      const noneCell = item.hasNone === false
+        ? `<td class="chk"></td>`
+        : `<td class="chk"><input type="checkbox" data-group="item8_${item.id}" data-val="none"></td>`;
+      const nameStyle = item.underline ? ' style="text-decoration:underline;"' : '';
+      tr.innerHTML = `
+        <td class="item-num">${item.no}</td>
+        <td class="item-name"${nameStyle}>${item.name}</td>
+        <td class="chk"><input type="checkbox" data-group="item8_${item.id}" data-val="normal"></td>
+        <td class="chk"><input type="checkbox" data-group="item8_${item.id}" data-val="damaged"></td>
+        ${noneCell}
+        <td class="defect"><input type="text" data-k="defect8_${item.id}"></td>
+      `;
+    }
+    sf019Body.appendChild(tr);
+  });
+
+  document.querySelectorAll('input[data-group]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) {
+        document.querySelectorAll(`input[data-group="${cb.dataset.group}"]`).forEach(other => {
+          if (other !== cb) other.checked = false;
+        });
+      }
+    });
+  });
+
+  // ---- Form <-> data helpers ----
+  function fieldRoots() {
+    const sheetIdMap = { sf015: 'sheetEl', sf022: 'sheetEl2', sf023: 'sheetEl3', sf021: 'sheetEl4', sf016: 'sheetEl5', sf017: 'sheetEl6', sf018: 'sheetEl7', sf019: 'sheetEl8' };
+    const activeSheet = document.getElementById(sheetIdMap[activeForm] || 'sheetEl');
+    return [document.getElementById('woExternal'), activeSheet].filter(Boolean);
+  }
+
+  function collectData() {
+    const data = {};
+    fieldRoots().forEach(root => {
+      root.querySelectorAll('input[data-k], textarea[data-k]').forEach(el => {
+        data[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.value;
+      });
+    });
+    data.groups = {};
+    fieldRoots().forEach(root => {
+      root.querySelectorAll('input[data-group]').forEach(cb => {
+        if (cb.checked) data.groups[cb.dataset.group] = cb.dataset.val;
+      });
+    });
+    return data;
+  }
+
+  function applyData(data) {
+    fieldRoots().forEach(root => {
+      root.querySelectorAll('input[data-k], textarea[data-k]').forEach(el => {
+        if (el.type === 'checkbox') el.checked = false; else el.value = '';
+      });
+      root.querySelectorAll('input[data-group]').forEach(cb => cb.checked = false);
+    });
+    if (!data) return;
+    fieldRoots().forEach(root => {
+      root.querySelectorAll('input[data-k], textarea[data-k]').forEach(el => {
+        if (data[el.dataset.k] === undefined) return;
+        if (el.type === 'checkbox') el.checked = !!data[el.dataset.k];
+        else el.value = data[el.dataset.k];
+      });
+    });
+    if (data.groups) {
+      fieldRoots().forEach(root => {
+        Object.entries(data.groups).forEach(([group, val]) => {
+          const cb = root.querySelector(`input[data-group="${group}"][data-val="${val}"]`);
+          if (cb) cb.checked = true;
+        });
+      });
+    }
+  }
+
+  function clearForm() {
+    fieldRoots().forEach(root => {
+      root.querySelectorAll('input[type="text"], textarea').forEach(el => el.value = '');
+      root.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
+    });
+    currentRecordId = null;
+    highlightActiveRecord();
+  }
+
+  // ---- UI refs ----
+  const statusEl = document.getElementById('status');
+  const saveBtn = document.getElementById('saveBtn');
+  const updateBtn = document.getElementById('updateBtn');
+  const newBtn = document.getElementById('newBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const printBtn = document.getElementById('printBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const signInBtn = document.getElementById('signInBtn');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const whoBox = document.getElementById('whoBox');
+  const recordsList = document.getElementById('recordsList');
+  const recordsCount = document.getElementById('recordsCount');
+  const adminPanel = document.getElementById('adminPanel');
+  const adminEmailInput = document.getElementById('adminEmailInput');
+  const adminAddBtn = document.getElementById('adminAddBtn');
+  const adminList = document.getElementById('adminList');
+
+  function setStatus(msg, revert = true) {
+    statusEl.textContent = msg;
+    if (revert) setTimeout(() => statusEl.textContent = 'พร้อมใช้งาน', 2500);
+  }
+
+  function isAdmin() {
+    return !!currentUser && currentUser.email === ADMIN_EMAIL;
+  }
+
+  function canDownload() {
+    return !!currentUser && (isAdmin() || allowedEmails.includes(currentUser.email));
+  }
+
+  function renderAllowedList() {
+    if (!isAdmin()) return;
+    if (allowedEmails.length === 0) {
+      adminList.innerHTML = '<span class="admin-empty">ยังไม่มีอีเมลที่อนุญาต (แอดมินดาวน์โหลดได้เสมอ)</span>';
+      return;
+    }
+    adminList.innerHTML = '';
+    allowedEmails.forEach(email => {
+      const chip = document.createElement('span');
+      chip.className = 'admin-chip';
+      chip.innerHTML = `<span>${email}</span><button title="ลบ">✕</button>`;
+      chip.querySelector('button').addEventListener('click', () => removeAllowedEmail(email));
+      adminList.appendChild(chip);
+    });
+  }
+
+  function updateAccessUI() {
+    exportBtn.disabled = !canDownload();
+    adminPanel.style.display = isAdmin() ? 'block' : 'none';
+    if (isAdmin()) renderAllowedList();
+  }
+
+  function setSignedInUI(user) {
+    if (user) {
+      whoBox.innerHTML = `
+        <img class="avatar" src="${user.photoURL || ''}" alt="">
+        <span>${user.displayName || user.email}</span>
+      `;
+      signInBtn.style.display = 'none';
+      signOutBtn.style.display = 'inline-block';
+      saveBtn.disabled = false;
+      updateBtn.disabled = false;
+    } else {
+      whoBox.innerHTML = `<span class="not-signed">ยังไม่ได้เข้าสู่ระบบ — ข้อมูลจะไม่ถูกบันทึก</span>`;
+      signInBtn.style.display = 'inline-flex';
+      signOutBtn.style.display = 'none';
+      saveBtn.disabled = true;
+      updateBtn.disabled = true;
+      exportBtn.disabled = true;
+      adminPanel.style.display = 'none';
+      recordsList.innerHTML = '<div class="records-empty">เข้าสู่ระบบเพื่อดูรายการที่บันทึกไว้</div>';
+      recordsCount.textContent = '0';
+    }
+  }
+
+  // ---- Download access list (Firestore: access/downloadAllowed) ----
+  function accessDocRef() {
+    return doc(db, 'access', 'downloadAllowed');
+  }
+
+  async function loadAllowedEmails() {
+    if (!currentUser) { allowedEmails = []; return; }
+    try {
+      const snap = await getDoc(accessDocRef());
+      allowedEmails = (snap.exists() && Array.isArray(snap.data().emails)) ? snap.data().emails : [];
+    } catch (e) {
+      console.error(e);
+      allowedEmails = [];
+    }
+    updateAccessUI();
+  }
+
+  async function addAllowedEmail(rawEmail) {
+    const email = (rawEmail || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      alert('กรุณากรอกอีเมลให้ถูกต้อง');
+      return;
+    }
+    try {
+      await setDoc(accessDocRef(), { emails: arrayUnion(email) }, { merge: true });
+      adminEmailInput.value = '';
+      await loadAllowedEmails();
+    } catch (e) {
+      console.error(e);
+      alert('เพิ่มอีเมลไม่สำเร็จ: ' + e.message);
+    }
+  }
+
+  async function removeAllowedEmail(email) {
+    if (!confirm(`ลบสิทธิ์ดาวน์โหลดของ ${email} หรือไม่?`)) return;
+    try {
+      await updateDoc(accessDocRef(), { emails: arrayRemove(email) });
+      await loadAllowedEmails();
+    } catch (e) {
+      console.error(e);
+      alert('ลบอีเมลไม่สำเร็จ: ' + e.message);
+    }
+  }
+
+  // ---- Firestore operations ----
+  function activeCollectionName() {
+    const collMap = { sf015: 'records', sf022: 'records_sf022', sf023: 'records_sf023', sf021: 'records_sf021', sf016: 'records_sf016', sf017: 'records_sf017', sf018: 'records_sf018', sf019: 'records_sf019' };
+    return collMap[activeForm] || 'records';
+  }
+
+  function userRecordsCol() {
+    return collection(db, 'users', currentUser.uid, activeCollectionName());
+  }
+
+  async function saveNewRecord() {
+    if (!currentUser) return;
+    try {
+      setStatus('กำลังบันทึก...', false);
+      const data = collectData();
+      const newRef = doc(userRecordsCol());
+      await setDoc(newRef, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      currentRecordId = newRef.id;
+      setStatus('บันทึกเป็นรายการใหม่แล้ว ✓');
+      await refreshRecords();
+    } catch (e) {
+      console.error(e);
+      setStatus('บันทึกไม่สำเร็จ: ' + e.message);
+    }
+  }
+
+  async function updateCurrentRecord() {
+    if (!currentUser) return;
+    if (!currentRecordId) { await saveNewRecord(); return; }
+    try {
+      setStatus('กำลังบันทึกทับ...', false);
+      const data = collectData();
+      await setDoc(doc(db, 'users', currentUser.uid, activeCollectionName(), currentRecordId),
+        { ...data, updatedAt: serverTimestamp() }, { merge: true });
+      setStatus('บันทึกทับรายการแล้ว ✓');
+      await refreshRecords();
+    } catch (e) {
+      console.error(e);
+      setStatus('บันทึกไม่สำเร็จ: ' + e.message);
+    }
+  }
+
+  function csvEscape(val) {
+    if (val === undefined || val === null) return '';
+    let s = String(val);
+    if (/[",\n\r]/.test(s)) {
+      s = '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  async function exportCSV() {
+    if (!currentUser) return;
+    if (!canDownload()) {
+      alert('คุณไม่มีสิทธิ์ดาวน์โหลดข้อมูล CSV กรุณาติดต่อแอดมิน');
+      return;
+    }
+    try {
+      setStatus('กำลังเตรียมไฟล์ CSV...', false);
+      const snap = await getDocs(userRecordsCol());
+      if (snap.empty) {
+        alert('ยังไม่มีข้อมูลที่บันทึกไว้');
+        setStatus('พร้อมใช้งาน');
+        return;
+      }
+      const docs = [];
+      snap.forEach(d => docs.push({ id: d.id, data: d.data() }));
+
+      const baseKeys = [];
+      const seen = new Set();
+      docs.forEach(({ data }) => {
+        Object.keys(data).forEach(k => {
+          if (k === 'groups' || k === 'createdAt' || k === 'updatedAt') return;
+          if (!seen.has(k)) { seen.add(k); baseKeys.push(k); }
+        });
+      });
+      const groupKeys = [];
+      const seenGroups = new Set();
+      docs.forEach(({ data }) => {
+        if (!data.groups) return;
+        Object.keys(data.groups).forEach(g => {
+          if (!seenGroups.has(g)) { seenGroups.add(g); groupKeys.push(g); }
+        });
+      });
+
+      const headers = ['record_id', ...baseKeys, ...groupKeys, 'created_at', 'updated_at'];
+      const rows = [headers.map(csvEscape).join(',')];
+
+      docs.forEach(({ id, data }) => {
+        const row = [id];
+        baseKeys.forEach(k => row.push(csvEscape(data[k])));
+        groupKeys.forEach(g => row.push(csvEscape(data.groups && data.groups[g] ? data.groups[g] : '')));
+        row.push(csvEscape(fmtDate(data.createdAt)));
+        row.push(csvEscape(fmtDate(data.updatedAt)));
+        rows.push(row.join(','));
+      });
+
+      const csvContent = '\uFEFF' + rows.join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      a.href = url;
+      a.download = `${activeCollectionName()}-${ts}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatus('ดาวน์โหลด CSV แล้ว ✓');
+    } catch (e) {
+      console.error(e);
+      setStatus('ดาวน์โหลดไม่สำเร็จ: ' + e.message);
+    }
+  }
+
+  async function loadRecord(id) {
+    try {
+      setStatus('กำลังโหลด...', false);
+      const snap = await getDoc(doc(db, 'users', currentUser.uid, activeCollectionName(), id));
+      if (snap.exists()) {
+        applyData(snap.data());
+        currentRecordId = id;
+        highlightActiveRecord();
+        setStatus('โหลดรายการแล้ว ✓');
+      }
+    } catch (e) {
+      console.error(e);
+      setStatus('โหลดไม่สำเร็จ: ' + e.message);
+    }
+  }
+
+  async function deleteRecord(id) {
+    if (!confirm('ลบรายการนี้หรือไม่? ไม่สามารถกู้คืนได้')) return;
+    try {
+      await deleteDoc(doc(db, 'users', currentUser.uid, activeCollectionName(), id));
+      if (currentRecordId === id) currentRecordId = null;
+      setStatus('ลบรายการแล้ว');
+      await refreshRecords();
+    } catch (e) {
+      console.error(e);
+      setStatus('ลบไม่สำเร็จ: ' + e.message);
+    }
+  }
+
+  function fmtDate(ts) {
+    try {
+      const d = ts && ts.toDate ? ts.toDate() : null;
+      if (!d) return '';
+      return d.toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+    } catch { return ''; }
+  }
+
+  function highlightActiveRecord() {
+    document.querySelectorAll('.record-row').forEach(row => {
+      row.classList.toggle('active', row.dataset.id === currentRecordId);
+    });
+  }
+
+  async function refreshRecords() {
+    if (!currentUser) return;
+    try {
+      const snap = await getDocs(userRecordsCol());
+      const docs = [];
+      snap.forEach(d => docs.push({ id: d.id, data: d.data() }));
+      docs.sort((a, b) => {
+        const ta = a.data.updatedAt?.toMillis ? a.data.updatedAt.toMillis() : 0;
+        const tb = b.data.updatedAt?.toMillis ? b.data.updatedAt.toMillis() : 0;
+        return tb - ta;
+      });
+      recordsCount.textContent = docs.length;
+      if (docs.length === 0) {
+        recordsList.innerHTML = '<div class="records-empty">ยังไม่มีข้อมูลที่บันทึกไว้</div>';
+        return;
+      }
+      recordsList.innerHTML = '';
+      docs.forEach(({ id, data }) => {
+        const row = document.createElement('div');
+        row.className = 'record-row';
+        row.dataset.id = id;
+        const wo = data.work_order || '(ไม่มี Work Order)';
+        const station = data.station_id || '';
+        const loc = data.location || '';
+        const meta = [station, loc].filter(Boolean).join(' • ');
+        row.innerHTML = `
+          <div class="info">
+            <div class="wo">${wo}</div>
+            <div class="meta">${meta || '—'} &nbsp;·&nbsp; ${fmtDate(data.updatedAt)}</div>
+          </div>
+          <div class="actions">
+            <button class="open">เปิด</button>
+            <button class="del">ลบ</button>
+          </div>
+        `;
+        row.querySelector('.open').addEventListener('click', () => loadRecord(id));
+        row.querySelector('.del').addEventListener('click', () => deleteRecord(id));
+        recordsList.appendChild(row);
+      });
+      highlightActiveRecord();
+    } catch (e) {
+      console.error(e);
+      recordsList.innerHTML = `<div class="records-empty">โหลดรายการไม่สำเร็จ: ${e.message}</div>`;
+    }
+  }
+
+  // ---- Auth wiring ----
+  onAuthStateChanged(auth, user => {
+    currentUser = user;
+    setSignedInUI(user);
+    if (user) {
+      refreshRecords();
+      loadAllowedEmails();
+    } else {
+      allowedEmails = [];
+    }
+  });
+
+  signInBtn.addEventListener('click', async () => {
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      console.error(e);
+      alert('เข้าสู่ระบบไม่สำเร็จ: ' + e.message);
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => {
+    await signOut(auth);
+    clearForm();
+  });
+
+  // ---- Button wiring ----
+  saveBtn.addEventListener('click', saveNewRecord);
+  updateBtn.addEventListener('click', updateCurrentRecord);
+  newBtn.addEventListener('click', () => {
+    if (confirm('เริ่มฟอร์มใหม่? ข้อมูลที่ยังไม่บันทึกจะหายไป')) clearForm();
+  });
+  resetBtn.addEventListener('click', () => {
+    if (confirm('ล้างข้อมูลในฟอร์มทั้งหมดหรือไม่?')) clearForm();
+  });
+  printBtn.addEventListener('click', () => window.print());
+  exportBtn.addEventListener('click', exportCSV);
+  refreshBtn.addEventListener('click', refreshRecords);
+  adminAddBtn.addEventListener('click', () => addAllowedEmail(adminEmailInput.value));
+  adminEmailInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addAllowedEmail(adminEmailInput.value);
+  });
+
+  // ---- Form switcher (SF-07-0-015 / 022 / 023 / 021 / 016 / 017) ----
+  const SHEET_ID_MAP = { sf015: 'sheetEl', sf022: 'sheetEl2', sf023: 'sheetEl3', sf021: 'sheetEl4', sf016: 'sheetEl5', sf017: 'sheetEl6', sf018: 'sheetEl7', sf019: 'sheetEl8' };
+
+  function switchForm(formKey) {
+    if (formKey === activeForm) return;
+    activeForm = formKey;
+    currentRecordId = null;
+    Object.entries(SHEET_ID_MAP).forEach(([key, id]) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = (key === formKey) ? 'block' : 'none';
+    });
+    document.querySelectorAll('.form-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.form === formKey);
+    });
+    if (currentUser) refreshRecords();
+  }
+
+  document.querySelectorAll('.form-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchForm(btn.dataset.form));
+  });
+
+  // ---- Fit form to exactly one A4 page when printing ----
+  const MM_TO_PX = 96 / 25.4;
+  const PAGE_MARGIN_MM = 8;
+  const PAGE_MARGIN_TOP_MM = 18;
+
+  function isActiveFormMultipage() {
+    const activeSheet = document.getElementById(SHEET_ID_MAP[activeForm] || 'sheetEl');
+    return !!(activeSheet && activeSheet.dataset.multipage === 'true');
+  }
+
+  function fitToOnePage() {
+    const content = document.getElementById('printContent');
+    const wrap = document.getElementById('printWrap');
+    if (isActiveFormMultipage()) {
+      // Let this form paginate naturally across multiple physical pages
+      content.style.transform = '';
+      content.style.width = '';
+      wrap.style.width = '';
+      wrap.style.height = '';
+      wrap.style.overflow = 'visible';
+      return;
+    }
+    wrap.style.overflow = '';
+    const BASE_WIDTH = 900; // matches .sheet's max-width, keeps measurement consistent
+    content.style.transform = 'none';
+    content.style.width = BASE_WIDTH + 'px';
+    const contentWidth = content.scrollWidth;
+    const contentHeight = content.scrollHeight;
+    const pageW = (210 - PAGE_MARGIN_MM * 2) * MM_TO_PX;
+    const pageH = (297 - PAGE_MARGIN_TOP_MM - PAGE_MARGIN_MM) * MM_TO_PX;
+    const scale = Math.min(pageW / contentWidth, pageH / contentHeight, 1);
+    content.style.transformOrigin = 'top left';
+    content.style.transform = `scale(${scale})`;
+    wrap.style.width = (contentWidth * scale) + 'px';
+    wrap.style.height = (contentHeight * scale) + 'px';
+  }
+
+  function resetPageFit() {
+    const content = document.getElementById('printContent');
+    const wrap = document.getElementById('printWrap');
+    content.style.transform = '';
+    content.style.width = '';
+    wrap.style.width = '';
+    wrap.style.height = '';
+    wrap.style.overflow = '';
+  }
+
+  window.addEventListener('beforeprint', fitToOnePage);
+  window.addEventListener('afterprint', resetPageFit);
+</script>
+</body>
+</html>
