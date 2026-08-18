@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PowerEye Sentinel – AI Battery Analytics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js">
+// ─── AI PAGE ───
+function updateAIClock(){const el=document.getElementById('aiClock');if(el)el.textContent=new Date().toLocaleString('th-TH',{hour12:false});}
+setInterval(updateAIClock,1000);updateAIClock();
+
+// Root cause data
+const rootCauses=[
+  {label:'Ambient Temperature',pct:46,color:'#f39c12',desc:'อุณหภูมิสูงกว่า baseline 3.1°C เร่งการเสื่อมสภาพ'},
+  {label:'Internal Resistance',pct:40,color:'#e74c3c',desc:'Cell C41 IR สูงผิดปกติ — อาจเกิดจาก inter-connect'},
+  {label:'Cycle Depth (DoD)',pct:28,color:'#7c6fe0',desc:'Discharge depth เฉลี่ย 78% ควรลดเป็น 60%'},
+  {label:'Charge Rate (C-Rate)',pct:18,color:'#3a8fd9',desc:'C-Rate ขณะชาร์จสูงเกินในบางช่วง'},
+  {label:'Humidity',pct:12,color:'#2ecc71',desc:'ความชื้นอยู่ในเกณฑ์ปกติ ผลกระทบต่ำ'},
+];
+function buildRootCause(){
+  const el=document.getElementById('rootCauseList');
+  if(!el)return;
+  el.innerHTML=rootCauses.map(r=>`
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <div style="font-size:10px;color:#ccc">${r.label}</div>
+        <div style="font-size:10px;font-weight:700;color:${r.color}">${r.pct}%</div>
+      </div>
+      <div style="height:6px;background:#1e2130;border-radius:3px;overflow:hidden;margin-bottom:2px">
+        <div style="height:100%;width:${r.pct}%;background:${r.color};border-radius:3px;transition:width 1s"></div>
+      </div>
+      <div style="font-size:8px;color:#555">${r.desc}</div>
+    </div>`).join('');
+}
+buildRootCause();
+
+// Cell heatmap
+function buildHeatmap(){
+  const el=document.getElementById('heatmap');
+  if(!el||typeof cellIR==='undefined')return;
+  el.innerHTML='';
+  cellIR.forEach((ir,i)=>{
+    const bg=ir<10?'#0d3b1e':ir<11?'#2d3b00':ir<12.5?'#3b2800':'#3b0d0d';
+    const col=ir<10?'#2ecc71':ir<11?'#8bc34a':ir<12.5?'#f39c12':'#e74c3c';
+    const d=document.createElement('div');
+    d.style.cssText=`aspect-ratio:1;border-radius:3px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:7px;color:${col};cursor:pointer`;
+    d.title=`Cell ${i+1}: ${ir}mΩ`;
+    d.textContent=i+1;
+    el.appendChild(d);
+  });
+}
+buildHeatmap();
+
+// Prescriptive actions
+const actions=[
+  {icon:'🌡',color:'#3b1f00',tc:'#f39c12',priority:'HIGH',title:'HVAC Check',desc:'BKK-01-A cell temp สูงกว่า expected 3.4°C — ตรวจสอบระบบระบายความร้อนทันที',eta:'ภายใน 24 ชั่วโมง'},
+  {icon:'🔧',color:'#3b0d0d',tc:'#e74c3c',priority:'HIGH',title:'Cell C41 Inspection',desc:'IR = 13.79mΩ สูงเกิน threshold — ตรวจ inter-connect และ terminal corrosion',eta:'ภายใน 7 วัน'},
+  {icon:'⚡',color:'#0a2540',tc:'#3a8fd9',priority:'MED',title:'Reduce Discharge Depth',desc:'Limit DoD จาก 78% → 60% เพื่อยืดอายุการใช้งาน +0.5 ปี',eta:'ปรับ parameter ได้เลย'},
+  {icon:'📋',color:'#1e1a3b',tc:'#a78bfa',priority:'LOW',title:'Scheduled Maintenance',desc:'Full capacity test และ IR measurement ทุก 6 เดือน',eta:'ครั้งถัดไป: Jan 2026'},
+];
+function buildActions(){
+  const el=document.getElementById('prescActions');
+  if(!el)return;
+  const pc={'HIGH':'b-crit','MED':'b-warn','LOW':'b-info'};
+  el.innerHTML=actions.map(a=>`
+    <div style="display:flex;align-items:flex-start;gap:8px;background:#0f1117;border:0.5px solid #2a2d3a;border-radius:6px;padding:8px 10px;margin-bottom:6px">
+      <div style="width:26px;height:26px;border-radius:5px;background:${a.color};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${a.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <div style="font-size:10px;font-weight:600;color:#ccc">${a.title}</div>
+          <span class="badge ${pc[a.priority]}">${a.priority}</span>
+        </div>
+        <div style="font-size:9px;color:#666;line-height:1.4;margin-bottom:2px">${a.desc}</div>
+        <div style="font-size:8px;color:#555">⏱ ${a.eta}</div>
+      </div>
+    </div>`).join('');
+}
+buildActions();
+
+// SOH chart
+const gc2='rgba(255,255,255,0.05)';
+new Chart(document.getElementById('aiSohChart'),{type:'line',
+  data:{labels:['Y1','Y2','Y3','Y4','Y5','Y6','Y7','Y8','Y9','Y10'],
+    datasets:[
+      {label:'Historical',data:[100,98,96,94,92,null,null,null,null,null],borderColor:'#2ecc71',borderWidth:2,pointBackgroundColor:'#2ecc71',pointRadius:[3,3,3,3,4,0,0,0,0,0],tension:0.3,spanGaps:false},
+      {label:'Forecast',data:[null,null,null,null,92,88,84,80,76,72],borderColor:'#7c6fe0',borderWidth:2,borderDash:[4,3],pointRadius:2,pointBackgroundColor:'#7c6fe0',tension:0.3,spanGaps:true},
+      {label:'Upper',data:[null,null,null,null,93,89.5,85.5,82,78,74],borderColor:'rgba(58,143,217,0.3)',borderWidth:1,borderDash:[2,2],pointRadius:0,tension:0.3,fill:false,spanGaps:true},
+      {label:'Lower',data:[null,null,null,null,91,86.5,82.5,78,74,70],borderColor:'rgba(58,143,217,0.3)',borderWidth:1,borderDash:[2,2],pointRadius:0,tension:0.3,fill:'-1',backgroundColor:'rgba(58,143,217,0.04)',spanGaps:true},
+      {label:'EOL',data:[80,80,80,80,80,80,80,80,80,80],borderColor:'#f39c12',borderWidth:1,borderDash:[5,3],pointRadius:0}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:gc2},ticks:{color:'#666',font:{size:8}}},y:{grid:{color:gc2},ticks:{color:'#666',font:{size:8},callback:v=>v+'%'},min:65,max:105}}}});
+
+// IR trend chart
+const irDatasets={
+  0:{labels:Array.from({length:10},(_,i)=>'-'+(9-i)+'m'),data:[10.81,10.83,10.80,10.84,10.82,10.85,10.87,10.83,10.88,10.86]},
+  1:{labels:Array.from({length:12},(_,i)=>'-'+(11-i)+'h'),data:[10.65,10.70,10.72,10.75,10.73,10.76,10.78,10.80,10.79,10.82,10.84,10.86]},
+  2:{labels:Array.from({length:14},(_,i)=>'-'+(13-i)+'d'),data:[10.40,10.45,10.48,10.52,10.55,10.58,10.60,10.63,10.66,10.69,10.72,10.76,10.80,10.86]},
+};
+const aiIrChart=new Chart(document.getElementById('aiIrChart'),{type:'line',
+  data:{labels:irDatasets[0].labels,datasets:[{label:'Avg IR',data:irDatasets[0].data,borderColor:'#2ecc71',borderWidth:1.5,pointRadius:2,pointBackgroundColor:'#2ecc71',tension:0.3,fill:true,backgroundColor:'rgba(46,204,113,0.06)'}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:gc2},ticks:{color:'#666',font:{size:8}}},y:{grid:{color:gc2},ticks:{color:'#666',font:{size:8},callback:v=>v.toFixed(2)+'mΩ'}}}}});
+function setAIIRTab(idx,el){
+  document.querySelectorAll('#page-ai .inner-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  aiIrChart.data.labels=irDatasets[idx].labels;
+  aiIrChart.data.datasets[0].data=irDatasets[idx].data;
+  aiIrChart.update();
+}
+
+// Confidence pie
+new Chart(document.getElementById('confPie'),{type:'doughnut',
+  data:{labels:['High','Med','Low'],datasets:[{data:[60,16,24],backgroundColor:['#2ecc71','#f39c12','#e74c3c'],borderWidth:0,hoverOffset:4}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.label+': '+c.raw+'%'}}}}});
+
+// Anomaly score animation
+let anomDir=1,anomVal=0.14;
+setInterval(()=>{
+  anomVal=Math.max(0.05,Math.min(0.28,anomVal+(Math.random()*0.02-0.01)*anomDir));
+  if(anomVal>0.25||anomVal<0.07)anomDir*=-1;
+  const el=document.getElementById('anomScore');const bar=document.getElementById('anomBar');
+  if(el){el.textContent=anomVal.toFixed(2);el.style.color=anomVal>0.20?'#f39c12':anomVal>0.25?'#e74c3c':'#2ecc71';}
+  if(bar){bar.style.width=(anomVal/0.3*100).toFixed(0)+'%';bar.style.background=anomVal>0.20?'#f39c12':'#2ecc71';}
+},3000);
+
+// Refresh heatmap with cellIR
+setInterval(buildHeatmap, 5000);
+
+// Append new reasoning log entry occasionally
+const logLines=[
+  'Cell voltage variance σ=0.012V — within normal distribution',
+  'Thermal gradient detected: ΔT=1.8°C across string',
+  'Charge efficiency: 97.2% — nominal',
+  'IR upward trend confirmed for cells C17, C41, C38',
+  'SOH trajectory unchanged — maintaining 2.5yr RUL estimate',
+];
+let logIdx=0;
+setInterval(()=>{
+  const box=document.getElementById('reasoningLog');
+  if(!box)return;
+  const now=new Date().toLocaleTimeString('th-TH',{hour12:false});
+  const col=logIdx%2===0?'#2ecc71':'#3a8fd9';
+  const tag=logIdx%2===0?'AI Reasoner':'Analysis';
+  const div=document.createElement('div');
+  div.innerHTML=`<span style="color:#a78bfa">[${now}]</span> <span style="color:${col}">${tag}:</span> ${logLines[logIdx%logLines.length]}`;
+  box.insertBefore(div,box.firstChild);
+  if(box.children.length>8)box.removeChild(box.lastChild);
+  logIdx++;
+},8000);
+
+
+// ─── SUBSTATIONS DATA ───
+const substations = [
+  {id:'BKK-01',name:'บางเขน',loc:'กรุงเทพฯ เหนือ',region:'north', status:'normal',soh:92,strings:3,cells:48,voltage:13.52,current:12.4,temp:17.9,ir:10.81,norm:39,warn:9,crit:0,alarms:0},
+  {id:'BKK-02',name:'ลาดพร้าว',loc:'กรุงเทพฯ เหนือ',region:'north', status:'normal',soh:88,strings:2,cells:48,voltage:13.48,current:8.2, temp:18.5,ir:11.20,norm:42,warn:6,crit:0,alarms:0},
+  {id:'BKK-03',name:'มีนบุรี',loc:'กรุงเทพฯ เหนือ',region:'north', status:'warning',soh:81,strings:4,cells:48,voltage:13.31,current:15.1,temp:21.2,ir:12.85,norm:31,warn:14,crit:3,alarms:3},
+  {id:'BKK-04',name:'หลักสี่',loc:'กรุงเทพฯ เหนือ',region:'north', status:'normal',soh:90,strings:2,cells:48,voltage:13.55,current:9.8, temp:18.1,ir:10.55,norm:44,warn:4,crit:0,alarms:0},
+  {id:'NBR-01',name:'นนทบุรี',loc:'นนทบุรี',region:'central',status:'normal',soh:94,strings:3,cells:48,voltage:13.61,current:11.2,temp:17.5,ir:10.10,norm:46,warn:2,crit:0,alarms:0},
+  {id:'NBR-02',name:'ปากเกร็ด',loc:'นนทบุรี',region:'central',status:'warning',soh:84,strings:2,cells:48,voltage:13.28,current:18.6,temp:22.1,ir:12.40,norm:35,warn:11,crit:2,alarms:2},
+  {id:'PTE-01',name:'ปทุมธานี',loc:'ปทุมธานี',region:'central',status:'normal',soh:91,strings:3,cells:48,voltage:13.50,current:10.5,temp:18.8,ir:10.75,norm:40,warn:8,crit:0,alarms:0},
+  {id:'PTE-02',name:'ธัญบุรี',loc:'ปทุมธานี',region:'central',status:'critical',soh:72,strings:2,cells:48,voltage:12.95,current:22.3,temp:25.6,ir:14.20,norm:22,warn:18,crit:8,alarms:4},
+  {id:'SMT-01',name:'สมุทรปราการ',loc:'สมุทรปราการ',region:'central',status:'normal',soh:89,strings:3,cells:48,voltage:13.44,current:13.7,temp:19.2,ir:11.05,norm:37,warn:10,crit:1,alarms:1},
+  {id:'CHB-01',name:'ชลบุรี',loc:'ชลบุรี',region:'east', status:'normal',soh:93,strings:4,cells:48,voltage:13.58,current:9.1, temp:18.0,ir:10.30,norm:44,warn:4,crit:0,alarms:0},
+  {id:'RYG-01',name:'ระยอง',loc:'ระยอง',region:'east', status:'warning',soh:83,strings:3,cells:48,voltage:13.22,current:19.4,temp:23.8,ir:12.95,norm:29,warn:15,crit:4,alarms:2},
+  {id:'CCA-01',name:'ฉะเชิงเทรา',loc:'ฉะเชิงเทรา',region:'east', status:'normal',soh:87,strings:2,cells:48,voltage:13.40,current:11.8,temp:19.5,ir:11.40,norm:38,warn:10,crit:0,alarms:0},
+];
+
+let currentRegion='all';
+let detailVChart=null, detailTChart=null;
+
+function filterRegion(region, el){
+  currentRegion=region;
+  document.querySelectorAll('.region-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderSubstations();
+}
+
+function renderSubstations(){
+  const grid=document.getElementById('substationGrid');
+  if(!grid)return;
+  const filtered=currentRegion==='all'?substations:substations.filter(s=>s.region===currentRegion);
+  grid.innerHTML=filtered.map((s,idx)=>{
+    const realIdx=substations.indexOf(s);
+    const sc=s.status==='critical'?'sub-crit':s.status==='warning'?'sub-warn':'sub-ok';
+    const vc=s.status==='critical'?'#e74c3c':s.status==='warning'?'#f39c12':'#2ecc71';
+    const bc=s.status==='critical'?'b-crit':s.status==='warning'?'b-warn':'b-ok';
+    const sohPct=(s.soh/100*100).toFixed(0);
+    const sohCol=s.soh>85?'#2ecc71':s.soh>75?'#f39c12':'#e74c3c';
+    return `<div class="sub-card ${sc}" onclick="openSubstation(${realIdx})">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+        <div>
+          <div class="sub-name">${s.id}</div>
+          <div class="sub-loc">📍 ${s.name} · ${s.loc}</div>
+        </div>
+        <span class="badge ${bc}" style="flex-shrink:0">${s.status.toUpperCase()}</span>
+      </div>
+      <div class="sub-stat"><span class="sub-stat-label">SOH</span><span style="color:${sohCol};font-weight:600">${s.soh}%</span></div>
+      <div class="sub-mini-bar"><div class="sub-mini-fill" style="width:${s.soh}%;background:${sohCol}"></div></div>
+      <div class="sub-stat"><span class="sub-stat-label">Voltage</span><span style="color:#ccc">${s.voltage.toFixed(2)} V</span></div>
+      <div class="sub-stat"><span class="sub-stat-label">Temp</span><span style="color:#f39c12">${s.temp.toFixed(1)} °C</span></div>
+      <div class="sub-stat"><span class="sub-stat-label">Avg IR</span><span style="color:${s.ir>12?'#e74c3c':s.ir>11?'#f39c12':'#2ecc71'}">${s.ir.toFixed(2)} mΩ</span></div>
+      <div class="sub-footer">
+        <div class="sub-cells">
+          <span style="color:#2ecc71">✓${s.norm}</span>
+          <span style="color:#f39c12">⚠${s.warn}</span>
+          <span style="color:#e74c3c">✕${s.crit}</span>
+        </div>
+        <div style="font-size:9px;color:#555">${s.strings} strings · ${s.alarms>0?'<span style=color:#e74c3c>⚠ '+s.alarms+' alarm</span>':'<span style=color:#555>No alarm</span>'}</div>
+      </div>
+    </div>`;
+  }).join('');
+  // update total alarms
+  const total=substations.reduce((a,s)=>a+s.alarms,0);
+  const el=document.getElementById('totalAlarms'); if(el)el.textContent=total;
+}
+
+function openSubstation(idx){
+  const s=substations[idx];
+  document.getElementById('subListView').style.display='none';
+  document.getElementById('subDetailView').style.display='block';
+  const bc=s.status==='critical'?'b-crit':s.status==='warning'?'b-warn':'b-ok';
+  const el=id=>document.getElementById(id);
+  if(el('detailTitle'))el('detailTitle').textContent='🏭 '+s.id+' – '+s.name+' ('+s.loc+')';
+  if(el('detailBadge')){el('detailBadge').textContent=s.status.toUpperCase();el('detailBadge').className='badge '+bc;}
+  if(el('detailLastUpdate'))el('detailLastUpdate').textContent='อัปเดต: '+new Date().toLocaleTimeString('th-TH',{hour12:false});
+
+  // KPIs
+  const sohCol=s.soh>85?'#2ecc71':s.soh>75?'#f39c12':'#e74c3c';
+  if(el('detailKpiRow')) el('detailKpiRow').innerHTML=`
+    <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+      <div class="kpi-label">SOH</div>
+      <div style="font-size:22px;font-weight:700;color:${sohCol}">${s.soh}%</div>
+      <div style="font-size:8px;color:#555">Remaining: ${(s.soh*0.027).toFixed(1)} years</div>
+    </div>
+    <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+      <div class="kpi-label">String Voltage</div>
+      <div style="font-size:22px;font-weight:700;color:#7c6fe0">${s.voltage.toFixed(3)} <span style="font-size:10px;color:#888">V</span></div>
+      <div style="font-size:8px;color:#555">${s.strings} strings</div>
+    </div>
+    <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+      <div class="kpi-label">Temperature</div>
+      <div style="font-size:22px;font-weight:700;color:#f39c12">${s.temp.toFixed(1)} <span style="font-size:10px;color:#888">°C</span></div>
+      <div style="font-size:8px;color:#555">Ambient</div>
+    </div>
+    <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+      <div class="kpi-label">Avg IR</div>
+      <div style="font-size:22px;font-weight:700;color:${s.ir>12?'#e74c3c':s.ir>11?'#f39c12':'#2ecc71'}">${s.ir.toFixed(2)} <span style="font-size:10px;color:#888">mΩ</span></div>
+      <div style="font-size:8px;color:#555">${s.alarms} active alarm${s.alarms!==1?'s':''}</div>
+    </div>`;
+
+  // Banks
+  if(el('detailBanks')) el('detailBanks').innerHTML=Array.from({length:s.strings},(_,i)=>{
+    const bv=(s.voltage+(Math.random()*0.1-0.05)).toFixed(3);
+    const bi=(s.current+(Math.random()*2-1)).toFixed(1);
+    const bsoh=(s.soh+(Math.random()*4-2)).toFixed(1);
+    const bir=(s.ir+(Math.random()*0.5-0.25)).toFixed(2);
+    return `<div class="bank-card">
+      <div class="bank-name">Bank ${s.id}-${String.fromCharCode(65+i)} · 48 cells</div>
+      <div class="bank-stats">
+        <div class="bank-stat"><div class="bank-stat-val" style="color:#7c6fe0">${bv}V</div><div class="bank-stat-lbl">Voltage</div></div>
+        <div class="bank-stat"><div class="bank-stat-val" style="color:#3a8fd9">${bi}A</div><div class="bank-stat-lbl">Current</div></div>
+        <div class="bank-stat"><div class="bank-stat-val" style="color:#2ecc71">${bsoh}%</div><div class="bank-stat-lbl">SOH</div></div>
+        <div class="bank-stat"><div class="bank-stat-val" style="color:${+bir>12?'#e74c3c':+bir>11?'#f39c12':'#2ecc71'}">${bir}mΩ</div><div class="bank-stat-lbl">Avg IR</div></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Destroy old charts
+  if(detailVChart){detailVChart.destroy();detailVChart=null;}
+  if(detailTChart){detailTChart.destroy();detailTChart=null;}
+
+  // Voltage chart
+  const gc='rgba(255,255,255,0.05)';
+  const vLabels=Array.from({length:24},(_,i)=>i%6===0?(i+'h'):'');
+  const vData=Array.from({length:24},(_,i)=>+(s.voltage+(Math.sin(i/3)*0.05+Math.random()*0.02-0.01)).toFixed(3));
+  const cData=Array.from({length:24},(_,i)=>+(s.current+(Math.sin(i/4)*3+Math.random()*2-1)).toFixed(1));
+  detailVChart=new Chart(document.getElementById('detailVChart'),{type:'line',
+    data:{labels:vLabels,datasets:[
+      {label:'Voltage',data:vData,borderColor:'#7c6fe0',borderWidth:1.5,pointRadius:0,tension:0.4,yAxisID:'y'},
+      {label:'Current',data:cData,borderColor:'#3a8fd9',borderWidth:1.5,pointRadius:0,tension:0.4,borderDash:[3,2],yAxisID:'y1'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:gc},ticks:{color:'#666',font:{size:8}}},
+        y:{grid:{color:gc},ticks:{color:'#7c6fe0',font:{size:8},callback:v=>v+'V'},position:'left'},
+        y1:{grid:{display:false},ticks:{color:'#3a8fd9',font:{size:8},callback:v=>v+'A'},position:'right'}
+      }}});
+
+  // Temp chart
+  const tData=Array.from({length:24},(_,i)=>+(s.temp+(Math.sin(i/5)*1.5+Math.random()*0.5-0.25)).toFixed(1));
+  detailTChart=new Chart(document.getElementById('detailTChart'),{type:'line',
+    data:{labels:vLabels,datasets:[{label:'Temp',data:tData,borderColor:'#f39c12',borderWidth:1.5,pointRadius:0,tension:0.4,fill:true,backgroundColor:'rgba(243,156,18,0.07)'}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:gc},ticks:{color:'#666',font:{size:8}}},y:{grid:{color:gc},ticks:{color:'#666',font:{size:8},callback:v=>v+'°C'}}}}});
+
+  // Cell grid
+  const cg=document.getElementById('detailCellGrid');
+  if(cg){
+    cg.innerHTML='';
+    let n=0,w=0,cr=0;
+    const total=s.norm+s.warn+s.crit;
+    for(let i=0;i<total;i++){
+      let cls,sym;
+      const r=Math.random();
+      if(cr<s.crit&&(r<s.crit/total||i>=total-s.crit+cr)){cls='c-crit';sym='✕';cr++;}
+      else if(w<s.warn&&(r<(s.warn+s.crit)/total||i>=total-s.warn-s.crit+w+cr)){cls='c-warn';sym='⚠';w++;}
+      else{cls='c-ok';sym='✓';n++;}
+      const d=document.createElement('div');
+      d.className=cls; d.textContent=sym;
+      d.title='Cell '+(i+1);
+      cg.appendChild(d);
+    }
+    const se=id=>document.getElementById(id);
+    if(se('detLegNorm'))se('detLegNorm').textContent=s.norm+' Normal';
+    if(se('detLegWarn'))se('detLegWarn').textContent=s.warn+' Warning';
+    if(se('detLegCrit'))se('detLegCrit').textContent=s.crit+' Critical';
+  }
+}
+
+function backToList(){
+  document.getElementById('subListView').style.display='block';
+  document.getElementById('subDetailView').style.display='none';
+}
+
+function updateSubClock(){
+  const el=document.getElementById('subClock');
+  if(el)el.textContent=new Date().toLocaleString('th-TH',{hour12:false});
+}
+setInterval(updateSubClock,1000);updateSubClock();
+
+// Slight RT variation on substations
+setInterval(()=>{
+  substations.forEach(s=>{
+    s.voltage=+Math.max(12.8,Math.min(13.8,(s.voltage+(Math.random()*0.02-0.01))).toFixed(3));
+    s.temp=+Math.max(15,Math.min(26,(s.temp+(Math.random()*0.2-0.1))).toFixed(1));
+  });
+  if(document.getElementById('substationGrid')&&document.getElementById('subListView').style.display!=='none') renderSubstations();
+},5000);
+
+renderSubstations();
+
+
+
+</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e0e0e0;font-size:12px;min-height:100vh}
+.app{display:flex;flex-direction:column;min-height:100vh}
+
+/* NAV */
+.topnav{background:#13151e;border-bottom:0.5px solid #2a2d3a;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.badge-green{background:#0d3b1e;color:#2ecc71;border:0.5px solid #1a6b3a;padding:3px 7px;border-radius:4px;font-size:9px;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.badge-dot{width:5px;height:5px;border-radius:50%;background:#2ecc71;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.nav-tabs{background:#13151e;border-bottom:0.5px solid #2a2d3a;display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab{padding:9px 14px;font-size:11px;color:#666;white-space:nowrap;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.nav-tab.active{color:#fff;border-bottom-color:#7c6fe0}
+.nav-tab:hover{color:#ccc}
+
+/* LAYOUT */
+.page{display:none;padding:10px;flex-direction:column;gap:8px;flex:1;animation:fadeIn .2s}
+.page.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* CARDS */
+.card{background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px}
+.card-label{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.section-title{font-size:12px;font-weight:600;color:#ccc;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.section-sub{font-size:9px;color:#555;margin-bottom:8px}
+.live-dot{width:5px;height:5px;border-radius:50%;background:#2ecc71;animation:pulse 1.5s infinite;display:inline-block}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}}
+.kpi-card{background:#0f1117;border:0.5px solid #2a2d3a;border-radius:6px;padding:8px 10px}
+.kpi-label{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.kpi-val{font-size:20px;font-weight:700;transition:color .3s}
+.kpi-unit{font-size:9px;color:#888;font-weight:400}
+.kpi-sub{font-size:8px;color:#666;margin-top:2px}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:10px}
+.tbl th{background:#0f1117;color:#666;font-weight:500;padding:6px 8px;text-align:left;border-bottom:0.5px solid #2a2d3a;font-size:9px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.tbl td{padding:6px 8px;border-bottom:0.5px solid #1a1d28;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#1a1d28}
+.badge{padding:2px 6px;border-radius:3px;font-size:8px;font-weight:600;white-space:nowrap}
+.b-ok{background:#0d3b1e;color:#2ecc71}
+.b-warn{background:#3b2800;color:#f39c12}
+.b-crit{background:#3b0d0d;color:#e74c3c}
+.b-info{background:#0a2540;color:#3a8fd9}
+.b-purple{background:#1e1a3b;color:#a78bfa}
+
+/* FORMS */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+@media(min-width:600px){.form-row.cols3{grid-template-columns:1fr 1fr 1fr}}
+.form-group{display:flex;flex-direction:column;gap:3px}
+.form-label{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.4px}
+.form-input{background:#0f1117;border:0.5px solid #2a2d3a;border-radius:4px;padding:6px 8px;color:#e0e0e0;font-size:11px;outline:none;transition:border-color .2s}
+.form-input:focus{border-color:#7c6fe0}
+.form-select{background:#0f1117;border:0.5px solid #2a2d3a;border-radius:4px;padding:6px 8px;color:#e0e0e0;font-size:11px;outline:none}
+.btn{padding:6px 14px;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+.btn-primary{background:#7c6fe0;color:#fff}
+.btn-primary:hover{background:#6a5ed0}
+.btn-success{background:#0d3b1e;color:#2ecc71;border:0.5px solid #1a6b3a}
+.btn-danger{background:#3b0d0d;color:#e74c3c;border:0.5px solid #6b1a1a}
+.btn-secondary{background:#1e2130;color:#ccc;border:0.5px solid #2a2d3a}
+.btn-sm{padding:3px 8px;font-size:9px}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap}
+
+/* THRESHOLD SLIDERS */
+.thresh-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.thresh-label{font-size:10px;color:#ccc;width:130px;flex-shrink:0}
+.thresh-low{color:#3a8fd9;font-size:10px;width:48px;text-align:right}
+.thresh-high{color:#e74c3c;font-size:10px;width:48px}
+input[type=range]{flex:1;min-width:80px;accent-color:#7c6fe0;height:4px}
+input[type=number]{background:#0f1117;border:0.5px solid #2a2d3a;border-radius:4px;padding:4px 6px;color:#e0e0e0;font-size:10px;width:60px;outline:none}
+
+/* ALARM LOG */
+.alarm-item{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:0.5px solid #1a1d28}
+.alarm-item:last-child{border-bottom:none}
+.alarm-icon{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px}
+.alarm-body{flex:1;min-width:0}
+.alarm-title{font-size:10px;font-weight:600;color:#ccc}
+.alarm-meta{font-size:8px;color:#555;margin-top:2px}
+.alarm-val{font-size:10px;text-align:right;white-space:nowrap;flex-shrink:0}
+
+/* REPORT */
+.report-card{background:#0f1117;border:0.5px solid #2a2d3a;border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.report-icon{width:28px;height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.r-excel{background:#0d3b1e}
+.r-pdf{background:#3b0d0d}
+.r-xml{background:#0a2540}
+.export-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+
+/* SECURITY */
+.role-badge{padding:2px 8px;border-radius:3px;font-size:9px;font-weight:600}
+.role-admin{background:#1e1a3b;color:#a78bfa}
+.role-engineer{background:#0a2540;color:#3a8fd9}
+.role-viewer{background:#1a1d28;color:#888}
+.audit-row{display:flex;gap:8px;padding:5px 0;border-bottom:0.5px solid #1a1d28;font-size:9px;align-items:flex-start}
+.audit-row:last-child{border-bottom:none}
+.audit-time{color:#555;white-space:nowrap;flex-shrink:0}
+.audit-user{color:#7c6fe0;white-space:nowrap;width:70px;flex-shrink:0}
+.audit-action{color:#ccc;flex:1}
+.chart-wrap{position:relative;width:100%}
+
+/* STATUS INDICATORS */
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px}
+.dot-g{background:#2ecc71}.dot-o{background:#f39c12}.dot-r{background:#e74c3c}.dot-b{background:#3a8fd9}
+
+/* TABS inside page */
+.inner-tabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+.inner-tab{padding:5px 12px;font-size:10px;border-radius:4px;cursor:pointer;border:0.5px solid #2a2d3a;color:#666;background:#0f1117;transition:all .2s}
+.inner-tab.active{background:#7c6fe0;color:#fff;border-color:#7c6fe0}
+
+/* DESKTOP */
+@media(min-width:900px){
+  .topnav{display:none}.nav-tabs{display:none}
+  .app{flex-direction:row}
+  .sidebar-desktop{display:flex!important;flex-direction:column;width:190px;min-width:190px;background:#13151e;border-right:0.5px solid #2a2d3a;min-height:100vh;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .sd-logo{padding:14px 12px;border-bottom:0.5px solid #2a2d3a}
+  .sd-nav{padding:8px 0;flex:1}
+  .sd-nav-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;color:#666;font-size:11px;position:relative;transition:background .15s}
+  .sd-nav-item:hover{background:#1a1d28}
+  .sd-nav-item.active{color:#fff;background:#1e2130}
+  .sd-nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#7c6fe0;border-radius:0 2px 2px 0}
+  .sd-bottom{padding:10px 12px;border-top:0.5px solid #2a2d3a;font-size:10px;color:#555}
+  .content-wrap{flex:1;overflow-y:auto;min-width:0}
+  .desktop-topbar{display:flex!important}
+}
+.sidebar-desktop{display:none}
+.desktop-topbar{display:none;align-items:center;justify-content:space-between;margin-bottom:10px}
+
+/* SCADA badge */
+.scada-row{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:#0f1117;border-radius:5px;border:0.5px solid #2a2d3a;margin-bottom:5px}
+.scada-label{font-size:10px;color:#ccc}
+.toggle{position:relative;width:32px;height:18px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.slider-toggle{position:absolute;inset:0;background:#2a2d3a;border-radius:9px;cursor:pointer;transition:.3s}
+.slider-toggle:before{content:'';position:absolute;width:14px;height:14px;left:2px;bottom:2px;background:#666;border-radius:50%;transition:.3s}
+.toggle input:checked+.slider-toggle{background:#7c6fe0}
+.toggle input:checked+.slider-toggle:before{transform:translateX(14px);background:#fff}
+
+/* PROGRESS */
+.progress-bar{height:4px;background:#1e2130;border-radius:2px;overflow:hidden;margin-top:3px}
+.progress-fill{height:100%;border-radius:2px;transition:width .5s}
+
+@media(max-width:380px){.form-row{grid-template-columns:1fr}}
+
+/* ─── CELL MONITORING GRID ─── */
+.cell-grid-mon{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-top:8px}
+@media(max-width:400px){.cell-grid-mon{grid-template-columns:repeat(8,1fr)}}
+.c-ok  {background:#1a3d1a;border:0.5px solid #2a6b2a;border-radius:5px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;color:#2ecc71;transition:all .3s}
+.c-warn{background:#3b2800;border:0.5px solid #7a5200;border-radius:5px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;color:#f39c12;transition:all .3s}
+.c-crit{background:#5a0a0a;border:0.5px solid #9b1a1a;border-radius:5px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;color:#ff4444;transition:all .3s}
+.c-ok:hover,.c-warn:hover,.c-crit:hover{transform:scale(1.15);z-index:2}
+
+.sub-card{background:#13151e;border:0.5px solid #2a2d3a;border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.sub-card:hover{border-color:#7c6fe0;transform:translateY(-2px)}
+.sub-card.selected{border-color:#7c6fe0;background:#1a1730}
+.sub-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:10px 10px 0 0}
+.sub-ok::before{background:#2ecc71}
+.sub-warn::before{background:#f39c12}
+.sub-crit::before{background:#e74c3c}
+.sub-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:700px){.sub-grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:1100px){.sub-grid{grid-template-columns:repeat(4,1fr)}}
+.sub-name{font-size:12px;font-weight:700;color:#fff;margin-bottom:2px}
+.sub-loc{font-size:9px;color:#555;margin-bottom:8px}
+.sub-stat{display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px}
+.sub-stat-label{color:#666}
+.sub-mini-bar{height:3px;background:#1e2130;border-radius:2px;overflow:hidden;margin-bottom:6px}
+.sub-mini-fill{height:100%;border-radius:2px}
+.sub-footer{display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:6px;border-top:0.5px solid #2a2d3a}
+.sub-cells{display:flex;gap:6px;font-size:9px}
+.detail-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.detail-back{background:#1e2130;border:0.5px solid #2a2d3a;border-radius:5px;padding:5px 10px;font-size:10px;cursor:pointer;color:#ccc;display:flex;align-items:center;gap:5px}
+.detail-back:hover{background:#2a2d3a}
+.bank-card{background:#0f1117;border:0.5px solid #2a2d3a;border-radius:7px;padding:8px 10px;margin-bottom:6px;cursor:pointer;transition:all .2s}
+.bank-card:hover{border-color:#7c6fe0;background:#13151e}
+.bank-name{font-size:11px;font-weight:600;color:#ccc;margin-bottom:4px}
+.bank-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.bank-stat{text-align:center}
+.bank-stat-val{font-size:13px;font-weight:700}
+.bank-stat-lbl{font-size:8px;color:#555;margin-top:1px}
+.region-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.region-tab{padding:4px 10px;font-size:9px;border-radius:4px;cursor:pointer;border:0.5px solid #2a2d3a;color:#666;background:#0f1117;transition:all .2s}
+.region-tab.active{background:#7c6fe0;color:#fff;border-color:#7c6fe0}
+.map-placeholder{background:#0f1117;border:0.5px solid #2a2d3a;border-radius:8px;padding:16px;margin-bottom:10px;position:relative;overflow:hidden}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- DESKTOP SIDEBAR -->
+<div class="sidebar-desktop">
+  <div class="sd-logo">
+    <img src="data:image/png;base64,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" alt="Borri" style="height:22px;width:auto;mix-blend-mode:screen;margin-bottom:4px;display:block">
+    <div style="font-size:12px;font-weight:700;color:#fff;line-height:1.2">PowerEye<br>Sentinel</div>
+    <div style="font-size:8px;color:#666;margin-top:2px;line-height:1.3">AI Battery Analytics<br>for Power Substations</div>
+  </div>
+  <div class="sd-nav">
+    <div class="sd-nav-item active" onclick="showPage('overview',this)">📊 Overview</div>
+    <div class="sd-nav-item" onclick="showPage('substations',this)">🏭 Substations</div>
+    <div class="sd-nav-item" onclick="showPage('ai',this)">🧠 AI Insights</div>
+    <div class="sd-nav-item" onclick="showPage('alarm',this)">🔔 Alarm &amp; Notification</div>
+    <div class="sd-nav-item" onclick="showPage('report',this)">📄 Reporting</div>
+    <div class="sd-nav-item" onclick="showPage('security',this)">🔒 Security</div>
+    <div class="sd-nav-item" onclick="showPage('settings',this)">⚙️ Settings</div>
+  </div>
+  <div style="padding:10px 12px;border-top:0.5px solid #2a2d3a">
+    <div style="font-size:9px;color:#555;margin-bottom:4px">Logged in as</div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="width:24px;height:24px;border-radius:50%;background:#1e1a3b;display:flex;align-items:center;justify-content:center;font-size:10px;color:#a78bfa;font-weight:600">A</div>
+      <div><div style="font-size:10px;color:#ccc">Admin User</div><div class="role-badge role-admin" style="margin-top:1px">Admin</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTENT WRAP -->
+<div class="content-wrap" style="flex:1;min-width:0;flex-direction:column;display:flex">
+
+  <!-- MOBILE NAV -->
+  <div class="topnav">
+    <div style="display:flex;align-items:center;gap:8px">
+      <img src="data:image/png;base64,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" alt="Borri" style="height:18px;width:auto;mix-blend-mode:screen;display:block">
+      <div style="font-size:11px;font-weight:700;color:#fff">PowerEye Sentinel</div>
+    </div>
+    <div class="badge-green"><span class="badge-dot"></span>LIVE</div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="showPage('overview',this)">📊 Overview</div>
+    <div class="nav-tab" onclick="showPage('substations',this)">🏭 Stations</div>
+    <div class="nav-tab" onclick="showPage('ai',this)">🧠 AI</div>
+    <div class="nav-tab" onclick="showPage('alarm',this)">🔔 Alarm</div>
+    <div class="nav-tab" onclick="showPage('report',this)">📄 Report</div>
+    <div class="nav-tab" onclick="showPage('security',this)">🔒 Security</div>
+    <div class="nav-tab" onclick="showPage('settings',this)">⚙️ Settings</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PAGE: OVERVIEW (4.2) -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="page active" id="page-overview">
+    <div class="desktop-topbar">
+      <div><div style="font-size:14px;font-weight:600;color:#fff">Overview – Real-Time Monitor</div>
+        <div style="font-size:10px;color:#666">Substation BKK-01 · Bank BKK-01-A · 48 cells · PEA Enterprise Network</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="badge-green"><span class="badge-dot"></span>LIVE · WebSocket Connected</div>
+        <div style="font-size:10px;color:#666" id="clockTop"></div>
+      </div>
+    </div>
+
+    <!-- 5 PARAM SUMMARY -->
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+      <div class="kpi-card">
+        <div class="kpi-label"><span class="live-dot" style="margin-right:3px"></span>String Voltage</div>
+        <div class="kpi-val" id="pStringV" style="color:#7c6fe0">—<span class="kpi-unit"> V</span></div>
+        <div class="kpi-sub">แรงดันรวมสาย · Limit: 12.0–14.4V</div>
+        <div class="progress-bar"><div class="progress-fill" id="pvBar" style="width:70%;background:#7c6fe0"></div></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label"><span class="live-dot" style="margin-right:3px"></span>Avg Cell Voltage</div>
+        <div class="kpi-val" id="pCellV" style="color:#3a8fd9">—<span class="kpi-unit"> V</span></div>
+        <div class="kpi-sub">แรงดันรายเซลล์ · Limit: 2.08–2.20V</div>
+        <div class="progress-bar"><div class="progress-fill" id="cvBar" style="width:55%;background:#3a8fd9"></div></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label"><span class="live-dot" style="margin-right:3px"></span>Avg IR</div>
+        <div class="kpi-val" id="pIR" style="color:#2ecc71">—<span class="kpi-unit"> mΩ</span></div>
+        <div class="kpi-sub">Internal Resistance · อัปเดตทุก 1 นาที</div>
+        <div class="progress-bar"><div class="progress-fill" id="irBar" style="width:65%;background:#2ecc71"></div></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label"><span class="live-dot" style="margin-right:3px"></span>Ambient Temp</div>
+        <div class="kpi-val" id="pTemp" style="color:#f39c12">—<span class="kpi-unit"> °C</span></div>
+        <div class="kpi-sub">อุณหภูมิแวดล้อม · Limit: 10–35°C</div>
+        <div class="progress-bar"><div class="progress-fill" id="tBar" style="width:40%;background:#f39c12"></div></div>
+      </div>
+      <div class="kpi-card" style="grid-column:span 2">
+        <div class="kpi-label"><span class="live-dot" style="margin-right:3px"></span>String Current</div>
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <div class="kpi-val" id="pCurrent" style="color:#e0e0e0">—<span class="kpi-unit"> A</span></div>
+          <div id="curDir" style="font-size:9px;padding:2px 7px;border-radius:3px;background:#1e2130;color:#888">—</div>
+        </div>
+        <div class="kpi-sub">กระแสชาร์จ/คายประจุ · บวก=Charging / ลบ=Discharging</div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="card">
+      <div class="section-title"><span class="live-dot"></span> String Current – Real-Time (Last 30s)</div>
+      <div class="chart-wrap" style="height:110px"><canvas id="currentChart" role="img" aria-label="Real-time string current">Current chart.</canvas></div>
+    </div>
+    <div class="card">
+      <div class="section-title"><span class="live-dot"></span> Cell Voltage Distribution (48 Cells)</div>
+      <div class="chart-wrap" style="height:110px"><canvas id="cellVChart" role="img" aria-label="Cell voltage distribution">Cell voltage chart.</canvas></div>
+    </div>
+    <div class="card">
+      <div class="section-title"><span class="live-dot"></span> Ambient Temperature – Trend</div>
+      <div class="chart-wrap" style="height:90px"><canvas id="tempChart" role="img" aria-label="Temperature trend">Temp chart.</canvas></div>
+    </div>
+    <div class="card">
+      <div class="section-title">SOH Degradation &amp; AI Forecast</div>
+      <div class="chart-wrap" style="height:130px"><canvas id="sohChart" role="img" aria-label="SOH trend">SOH chart.</canvas></div>
+    </div>
+
+    <!-- PARAMETER TABLE -->
+    <div class="card">
+      <div class="section-title">Parameter Table – All Cells</div>
+      <div class="section-sub">ตารางแสดงค่าพารามิเตอร์รายเซลล์ · อัปเดต Real-Time</div>
+      <div style="overflow-x:auto">
+        <table class="tbl" id="cellTable">
+          <thead>
+            <tr>
+              <th>Cell</th><th>Voltage (V)</th><th>IR (mΩ)</th><th>Status</th><th>Alarm</th>
+            </tr>
+          </thead>
+          <tbody id="cellTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PAGE: ALARM (4.3) -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="page" id="page-alarm">
+    <div class="desktop-topbar">
+      <div><div style="font-size:14px;font-weight:600;color:#fff">Alarm &amp; Notification</div>
+        <div style="font-size:10px;color:#666">ระบบแจ้งเตือนและบันทึก Event Log</div></div>
+    </div>
+
+    <!-- THRESHOLD SETTINGS -->
+    <div class="card">
+      <div class="section-title">⚙️ Threshold Settings</div>
+      <div class="section-sub">กำหนด Upper / Lower Limit สำหรับแต่ละพารามิเตอร์</div>
+      <div class="thresh-row">
+        <div class="thresh-label">String Voltage (V)</div>
+        <div class="thresh-low" id="sv-lo">12.0</div>
+        <input type="range" min="10" max="13" step="0.1" value="12" oninput="document.getElementById('sv-lo').textContent=this.value">
+        <input type="range" min="13" max="16" step="0.1" value="14.4" oninput="document.getElementById('sv-hi').textContent=this.value" style="accent-color:#e74c3c">
+        <div class="thresh-high" id="sv-hi">14.4</div>
+      </div>
+      <div class="thresh-row">
+        <div class="thresh-label">Cell Voltage (V)</div>
+        <div class="thresh-low" id="cv-lo">2.08</div>
+        <input type="range" min="1.9" max="2.1" step="0.01" value="2.08" oninput="document.getElementById('cv-lo').textContent=this.value">
+        <input type="range" min="2.1" max="2.4" step="0.01" value="2.20" oninput="document.getElementById('cv-hi').textContent=this.value" style="accent-color:#e74c3c">
+        <div class="thresh-high" id="cv-hi">2.20</div>
+      </div>
+      <div class="thresh-row">
+        <div class="thresh-label">Internal Resistance (mΩ)</div>
+        <div class="thresh-low" id="ir-lo">7.0</div>
+        <input type="range" min="5" max="10" step="0.5" value="7" oninput="document.getElementById('ir-lo').textContent=this.value">
+        <input type="range" min="10" max="20" step="0.5" value="12.0" oninput="document.getElementById('ir-hi').textContent=this.value" style="accent-color:#e74c3c">
+        <div class="thresh-high" id="ir-hi">12.0</div>
+      </div>
+      <div class="thresh-row">
+        <div class="thresh-label">String Current (A)</div>
+        <div class="thresh-low" id="cur-lo">-50</div>
+        <input type="range" min="-80" max="-20" step="5" value="-50" oninput="document.getElementById('cur-lo').textContent=this.value">
+        <input type="range" min="20" max="80" step="5" value="50" oninput="document.getElementById('cur-hi').textContent=this.value" style="accent-color:#e74c3c">
+        <div class="thresh-high" id="cur-hi">50</div>
+      </div>
+      <div style="margin-top:8px" class="btn-group">
+        <button class="btn btn-primary" onclick="saveThresh()">💾 Save Thresholds</button>
+        <button class="btn btn-secondary">↩ Reset Default</button>
+      </div>
+    </div>
+
+    <!-- NOTIFICATION SETTINGS -->
+    <div class="card">
+      <div class="section-title">📨 Notification Settings</div>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">Email Recipients</div>
+          <input class="form-input" type="email" value="engineer@pea.co.th" placeholder="email@domain.com">
+        </div>
+        <div class="form-group">
+          <div class="form-label">SMS Number</div>
+          <input class="form-input" type="tel" value="0812345678" placeholder="08xxxxxxxx">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">Alarm Delay (min)</div>
+          <input class="form-input" type="number" value="2" min="0" max="60">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Repeat Interval (min)</div>
+          <input class="form-input" type="number" value="30" min="5" max="120">
+        </div>
+      </div>
+      <!-- SCADA/EMS -->
+      <div style="margin-top:6px">
+        <div style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">SCADA / EMS&amp;DMS Integration (Option)</div>
+        <div class="scada-row">
+          <div>
+            <div class="scada-label">Send Alarm to SCADA</div>
+            <div style="font-size:8px;color:#555">Modbus TCP / IEC 61850</div>
+          </div>
+          <label class="toggle"><input type="checkbox" checked><span class="slider-toggle"></span></label>
+        </div>
+        <div class="scada-row">
+          <div>
+            <div class="scada-label">Send Alarm to EMS/DMS</div>
+            <div style="font-size:8px;color:#555">DNP3 / ICCP</div>
+          </div>
+          <label class="toggle"><input type="checkbox"><span class="slider-toggle"></span></label>
+        </div>
+      </div>
+      <div class="btn-group" style="margin-top:8px">
+        <button class="btn btn-primary">💾 Save Settings</button>
+        <button class="btn btn-secondary" onclick="testNotif()">📧 Test Notification</button>
+      </div>
+    </div>
+
+    <!-- ALARM LOG -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="section-title" style="margin:0">🗂 Alarm Event Log</div>
+        <div class="btn-group">
+          <button class="btn btn-secondary btn-sm">Filter</button>
+          <button class="btn btn-secondary btn-sm">Export</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>Timestamp</th><th>Parameter</th><th>Cell</th><th>Value</th><th>Limit</th><th>Severity</th><th>Status</th></tr></thead>
+          <tbody id="alarmLogBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PAGE: REPORT (4.4) -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="page" id="page-report">
+    <div class="desktop-topbar">
+      <div><div style="font-size:14px;font-weight:600;color:#fff">Reporting</div>
+        <div style="font-size:10px;color:#666">สร้างและส่งออกรายงาน On-demand / Scheduled</div></div>
+    </div>
+
+    <!-- REPORT CONFIG -->
+    <div class="card">
+      <div class="section-title">📋 Generate Report</div>
+      <div class="form-row cols3">
+        <div class="form-group">
+          <div class="form-label">Report Type</div>
+          <select class="form-select" id="rptType">
+            <option>Daily Summary</option>
+            <option>Weekly Summary</option>
+            <option>Monthly Summary</option>
+            <option>Alarm-Only Report</option>
+            <option>Custom Range</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Date From</div>
+          <input class="form-input" type="date" value="2025-10-01">
+        </div>
+        <div class="form-group">
+          <div class="form-label">Date To</div>
+          <input class="form-input" type="date" value="2025-10-30">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">Parameters</div>
+          <select class="form-select" multiple style="height:70px">
+            <option selected>System Voltage &amp; Current</option>
+            <option selected>Cell Voltage</option>
+            <option selected>Internal Resistance</option>
+            <option selected>Temperature</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Cell Filter</div>
+          <select class="form-select">
+            <option>All Cells</option>
+            <option>Alarm Cells Only</option>
+            <option>Warning Cells Only</option>
+            <option>Custom Cell Range</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:4px">
+        <div class="form-label" style="margin-bottom:6px">Export Format</div>
+        <div class="export-row">
+          <button class="btn btn-success" onclick="genReport('xlsx')">📊 Excel (.xlsx)</button>
+          <button class="btn btn-danger" onclick="genReport('pdf')">📄 PDF</button>
+          <button class="btn btn-secondary" onclick="genReport('xml')">🗃 XML</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCHEDULED REPORTS -->
+    <div class="card">
+      <div class="section-title">⏰ Scheduled Reports</div>
+      <div class="section-sub">ตั้งค่าส่งรายงานอัตโนมัติตามกำหนดเวลา</div>
+      <table class="tbl">
+        <thead><tr><th>Schedule</th><th>Type</th><th>Format</th><th>Recipients</th><th>Next Run</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Daily 08:00</td><td>Daily Summary</td><td><span class="badge b-ok">XLSX</span></td><td>engineer@pea.co.th</td><td>2025-10-31 08:00</td><td><span class="badge b-ok">Active</span></td><td><button class="btn btn-secondary btn-sm">Edit</button></td></tr>
+          <tr><td>Mon 06:00</td><td>Weekly Summary</td><td><span class="badge b-info">PDF</span></td><td>manager@pea.co.th</td><td>2025-11-04 06:00</td><td><span class="badge b-ok">Active</span></td><td><button class="btn btn-secondary btn-sm">Edit</button></td></tr>
+          <tr><td>1st 07:00</td><td>Monthly Summary</td><td><span class="badge b-purple">XML</span></td><td>scada@pea.co.th</td><td>2025-11-01 07:00</td><td><span class="badge b-warn">Paused</span></td><td><button class="btn btn-secondary btn-sm">Edit</button></td></tr>
+        </tbody>
+      </table>
+      <div class="btn-group" style="margin-top:8px">
+        <button class="btn btn-primary">+ Add Schedule</button>
+      </div>
+    </div>
+
+    <!-- HISTORICAL DATA -->
+    <div class="card">
+      <div class="section-title">🗄 Historical Data Access</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:#0f1117;border:0.5px solid #2a2d3a;border-radius:6px;padding:10px">
+          <div style="font-size:10px;font-weight:600;color:#2ecc71;margin-bottom:4px">🟢 Online Storage</div>
+          <div style="font-size:20px;font-weight:700;color:#fff">1 Year</div>
+          <div style="font-size:9px;color:#666;margin-top:2px">Oct 2024 – Oct 2025</div>
+          <div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:73%;background:#2ecc71"></div></div>
+          <div style="font-size:8px;color:#555;margin-top:2px">73% used · 365 GB / 500 GB</div>
+        </div>
+        <div style="background:#0f1117;border:0.5px solid #2a2d3a;border-radius:6px;padding:10px">
+          <div style="font-size:10px;font-weight:600;color:#3a8fd9;margin-bottom:4px">🔵 NAS Archive</div>
+          <div style="font-size:20px;font-weight:700;color:#fff">3 Years</div>
+          <div style="font-size:9px;color:#666;margin-top:2px">Oct 2022 – Oct 2025</div>
+          <div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:41%;background:#3a8fd9"></div></div>
+          <div style="font-size:8px;color:#555;margin-top:2px">41% used · 1.23 TB / 3 TB</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECENT REPORTS -->
+    <div class="card">
+      <div class="section-title">📁 Recent Reports</div>
+      <table class="tbl">
+        <thead><tr><th>Filename</th><th>Type</th><th>Generated</th><th>Size</th><th>Format</th><th></th></tr></thead>
+        <tbody id="recentReports"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PAGE: SECURITY (4.5) -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="page" id="page-security">
+    <div class="desktop-topbar">
+      <div><div style="font-size:14px;font-weight:600;color:#fff">Security &amp; Access Control</div>
+        <div style="font-size:10px;color:#666">RBAC · Audit Trail · PEA Enterprise Network</div></div>
+    </div>
+
+    <!-- USER MANAGEMENT -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="section-title" style="margin:0">👥 User Management</div>
+        <button class="btn btn-primary btn-sm" onclick="addUser()">+ Add User</button>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Last Login</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span style="color:#a78bfa">admin</span></td>
+            <td>System Administrator</td>
+            <td><span class="role-badge role-admin">Admin</span></td>
+            <td style="color:#555">2025-10-30 14:22</td>
+            <td><span class="badge b-ok">Active</span></td>
+            <td class="btn-group"><button class="btn btn-secondary btn-sm">Edit</button></td>
+          </tr>
+          <tr>
+            <td><span style="color:#3a8fd9">eng01</span></td>
+            <td>Somchai Jaidee</td>
+            <td><span class="role-badge role-engineer">Engineer</span></td>
+            <td style="color:#555">2025-10-30 09:15</td>
+            <td><span class="badge b-ok">Active</span></td>
+            <td class="btn-group"><button class="btn btn-secondary btn-sm">Edit</button><button class="btn btn-danger btn-sm">Lock</button></td>
+          </tr>
+          <tr>
+            <td><span style="color:#3a8fd9">eng02</span></td>
+            <td>Wichai Raksa</td>
+            <td><span class="role-badge role-engineer">Engineer</span></td>
+            <td style="color:#555">2025-10-29 16:40</td>
+            <td><span class="badge b-ok">Active</span></td>
+            <td class="btn-group"><button class="btn btn-secondary btn-sm">Edit</button><button class="btn btn-danger btn-sm">Lock</button></td>
+          </tr>
+          <tr>
+            <td><span style="color:#888">viewer01</span></td>
+            <td>PEA Supervisor</td>
+            <td><span class="role-badge role-viewer">Viewer</span></td>
+            <td style="color:#555">2025-10-28 11:05</td>
+            <td><span class="badge b-ok">Active</span></td>
+            <td class="btn-group"><button class="btn btn-secondary btn-sm">Edit</button><button class="btn btn-danger btn-sm">Lock</button></td>
+          </tr>
+          <tr>
+            <td><span style="color:#555">remote01</span></td>
+            <td>Remote Engineer</td>
+            <td><span class="role-badge role-engineer">Engineer</span></td>
+            <td style="color:#555">2025-10-20 08:30</td>
+            <td><span class="badge b-warn">Locked</span></td>
+            <td class="btn-group"><button class="btn btn-success btn-sm">Unlock</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- RBAC MATRIX -->
+    <div class="card">
+      <div class="section-title">🔐 Role-Based Access Control (RBAC)</div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>Permission</th><th>Admin</th><th>Engineer</th><th>Viewer</th></tr></thead>
+          <tbody>
+            <tr><td>View Dashboard</td><td style="color:#2ecc71">✓</td><td style="color:#2ecc71">✓</td><td style="color:#2ecc71">✓</td></tr>
+            <tr><td>View Real-Time Data</td><td style="color:#2ecc71">✓</td><td style="color:#2ecc71">✓</td><td style="color:#2ecc71">✓</td></tr>
+            <tr><td>View Alarm Log</td><td style="color:#2ecc71">✓</td><td style="color:#2ecc71">✓</td><td style="color:#2ecc71">✓</td></tr>
+            <tr><td>Export Reports</td><td style="color:#2ecc71">✓</td><td style="color:#2ecc71">✓</td><td style="color:#e74c3c">✗</td></tr>
+            <tr><td>Set Alarm Thresholds</td><td style="color:#2ecc71">✓</td><td style="color:#2ecc71">✓</td><td style="color:#e74c3c">✗</td></tr>
+            <tr><td>Manage Scheduled Reports</td><td style="color:#2ecc71">✓</td><td style="color:#f39c12">Read</td><td style="color:#e74c3c">✗</td></tr>
+            <tr><td>User Management</td><td style="color:#2ecc71">✓</td><td style="color:#e74c3c">✗</td><td style="color:#e74c3c">✗</td></tr>
+            <tr><td>System Settings</td><td style="color:#2ecc71">✓</td><td style="color:#e74c3c">✗</td><td style="color:#e74c3c">✗</td></tr>
+            <tr><td>SCADA Integration</td><td style="color:#2ecc71">✓</td><td style="color:#e74c3c">✗</td><td style="color:#e74c3c">✗</td></tr>
+            <tr><td>Audit Trail Access</td><td style="color:#2ecc71">✓</td><td style="color:#f39c12">Own</td><td style="color:#e74c3c">✗</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AUDIT TRAIL -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="section-title" style="margin:0">📋 Audit Trail</div>
+        <div class="btn-group">
+          <button class="btn btn-secondary btn-sm">Filter</button>
+          <button class="btn btn-secondary btn-sm">Export</button>
+        </div>
+      </div>
+      <div id="auditTrail"></div>
+    </div>
+
+    <!-- NETWORK ACCESS -->
+    <div class="card">
+      <div class="section-title">🌐 Network Access – PEA Enterprise</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:#0f1117;border:0.5px solid #2a2d3a;border-radius:6px;padding:8px">
+          <div style="font-size:9px;color:#555;margin-bottom:4px">Server Address</div>
+          <div style="font-size:11px;color:#ccc;font-family:monospace">192.168.10.50:8443</div>
+        </div>
+        <div style="background:#0f1117;border:0.5px solid #2a2d3a;border-radius:6px;padding:8px">
+          <div style="font-size:9px;color:#555;margin-bottom:4px">Protocol</div>
+          <div style="font-size:11px;color:#2ecc71">HTTPS / WSS (TLS 1.3)</div>
+        </div>
+        <div style="background:#0f1117;border:0.5px solid #2a2d3a;border-radius:6px;padding:8px">
+          <div style="font-size:9px;color:#555;margin-bottom:4px">Active Sessions</div>
+          <div style="font-size:18px;font-weight:700;color:#fff">3 <span style="font-size:9px;color:#666">/ 20 max</span></div>
+        </div>
+        <div style="background:#0f1117;border:0.5px solid #2a2d3a;border-radius:6px;padding:8px">
+          <div style="font-size:9px;color:#555;margin-bottom:4px">Uptime</div>
+          <div style="font-size:18px;font-weight:700;color:#2ecc71">99.97%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PAGE: SETTINGS -->
+  <!-- ═══════════════════════════════════════════ -->
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- PAGE: SUBSTATIONS -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="page" id="page-substations">
+    <div class="desktop-topbar">
+      <div><div style="font-size:14px;font-weight:600;color:#fff">🏭 Substation Overview</div>
+        <div style="font-size:10px;color:#666">ภาพรวมทุกสถานีไฟฟ้า · PEA Enterprise Network · อัปเดต Real-Time</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="background:#0d3b1e;color:#2ecc71;border:0.5px solid #1a6b3a;padding:3px 8px;border-radius:4px;font-size:9px;display:flex;align-items:center;gap:4px">
+          <span style="width:5px;height:5px;border-radius:50%;background:#2ecc71;animation:pulse 2s infinite;display:inline-block"></span>12 Online · 0 Offline
+        </div>
+        <div style="font-size:10px;color:#666" id="subClock"></div>
+      </div>
+    </div>
+
+    <!-- VIEW TOGGLE -->
+    <div id="subListView">
+      <!-- SUMMARY KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px">
+        <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+          <div class="kpi-label">Total Substations</div>
+          <div style="font-size:24px;font-weight:700;color:#fff">12</div>
+          <div style="font-size:9px;color:#777">ครอบคลุมพื้นที่ PEA เขต 1</div>
+        </div>
+        <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+          <div class="kpi-label">Total Battery Strings</div>
+          <div style="font-size:24px;font-weight:700;color:#fff">38</div>
+          <div style="font-size:9px;color:#777">48 cells / string เฉลี่ย</div>
+        </div>
+        <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+          <div class="kpi-label">System Alarm</div>
+          <div style="font-size:24px;font-weight:700;color:#f39c12" id="totalAlarms">7</div>
+          <div style="font-size:9px;color:#777">Active alarms across all sites</div>
+        </div>
+        <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+          <div class="kpi-label">Avg System SOH</div>
+          <div style="font-size:24px;font-weight:700;color:#2ecc71">89.4%</div>
+          <div style="font-size:9px;color:#777">ทุกสถานีรวมกัน</div>
+        </div>
+      </div>
+
+      <!-- REGION FILTER -->
+      <div class="region-tabs">
+        <div class="region-tab active" onclick="filterRegion('all',this)">ทั้งหมด (12)</div>
+        <div class="region-tab" onclick="filterRegion('north',this)">เหนือ (4)</div>
+        <div class="region-tab" onclick="filterRegion('central',this)">กลาง (5)</div>
+        <div class="region-tab" onclick="filterRegion('east',this)">ตะวันออก (3)</div>
+      </div>
+
+      <!-- MAP LEAFLET IFRAME -->
+      <div style="border-radius:8px;overflow:hidden;border:0.5px solid #2a2d3a">
+        <iframe src="thailand_map.html" style="width:100%;height:500px;border:none;display:block" title="Substation Map"></iframe>
+      </div>
+
+      <!-- STATION CARDS GRID -->
+      <div class="sub-grid" id="substationGrid"></div>
+    </div>
+
+    <!-- DETAIL VIEW (hidden by default) -->
+    <div id="subDetailView" style="display:none">
+      <div class="detail-header">
+        <div class="detail-back" onclick="backToList()">← กลับ</div>
+        <div id="detailTitle" style="font-size:14px;font-weight:600;color:#fff"></div>
+        <div id="detailBadge" class="badge b-ok" style="font-size:9px"></div>
+        <div style="font-size:9px;color:#555;margin-left:auto" id="detailLastUpdate"></div>
+      </div>
+
+      <!-- DETAIL KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px" id="detailKpiRow"></div>
+
+      <!-- BANKS -->
+      <div class="card" style="margin-bottom:8px">
+        <div class="section-title">🔋 Battery Banks</div>
+        <div id="detailBanks"></div>
+      </div>
+
+      <!-- DETAIL CHARTS -->
+      <div class="card" style="margin-bottom:8px">
+        <div class="section-title">📊 Voltage &amp; Current Trend</div>
+        <div style="position:relative;height:120px"><canvas id="detailVChart" role="img" aria-label="Station voltage trend">Voltage chart.</canvas></div>
+      </div>
+      <div class="card" style="margin-bottom:8px">
+        <div class="section-title">🌡 Temperature Trend</div>
+        <div style="position:relative;height:90px"><canvas id="detailTChart" role="img" aria-label="Station temperature trend">Temp chart.</canvas></div>
+      </div>
+
+      <!-- CELL GRID -->
+      <div class="card">
+        <div class="section-title">Cell-Level Monitoring</div>
+        <div style="display:flex;gap:12px;margin-bottom:6px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888"><span class="dot dot-g"></span><span id="detLegNorm">—</span></div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888"><span class="dot dot-o"></span><span id="detLegWarn">—</span></div>
+          <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888"><span class="dot dot-r"></span><span id="detLegCrit">—</span></div>
+        </div>
+        <div class="cell-grid-mon" id="detailCellGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI INSIGHTS PAGE -->
+  <div class="page" id="page-ai">
+    <div class="desktop-topbar">
+      <div><div style="font-size:14px;font-weight:600;color:#fff">🧠 AI Insights &amp; Predictive Analytics</div>
+        <div style="font-size:10px;color:#666">LSTM v2.1 · วิเคราะห์แบบ Real-Time · Root Cause Analysis</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="background:#1e1a3b;color:#a78bfa;border:0.5px solid #3d2d8a;padding:3px 8px;border-radius:4px;font-size:9px">🤖 Model: LSTM v2.1</div>
+        <div id="aiClock" style="font-size:10px;color:#666"></div>
+      </div>
+    </div>
+
+    <!-- SOH + RUL KPI row -->
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+      <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+        <div class="kpi-label">State of Health (SOH)</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <div style="position:relative;width:52px;height:52px;flex-shrink:0">
+            <svg width="52" height="52" viewBox="0 0 52 52" style="transform:rotate(-90deg)">
+              <circle cx="26" cy="26" r="20" fill="none" stroke="#1e2130" stroke-width="5"/>
+              <circle cx="26" cy="26" r="20" fill="none" stroke="#2ecc71" stroke-width="5" stroke-dasharray="115.6 125.7" stroke-linecap="round"/>
+            </svg>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;font-size:11px;font-weight:700;color:#2ecc71;line-height:1">92%</div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:#555">Current SOH</div>
+            <div style="font-size:9px;color:#777;margin-top:2px">ลดลง 0.3%/เดือน</div>
+            <div style="margin-top:4px;background:#0d3b1e;border-radius:3px;padding:2px 6px;display:inline-block;font-size:8px;color:#2ecc71">NORMAL</div>
+          </div>
+        </div>
+      </div>
+      <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+        <div class="kpi-label">Remaining Useful Life (RUL)</div>
+        <div style="font-size:26px;font-weight:700;color:#7c6fe0;margin-top:4px">2.5 <span style="font-size:11px;color:#888;font-weight:400">years</span></div>
+        <div style="font-size:9px;color:#777">EOL Predicted: Nov 2028</div>
+        <div style="font-size:8px;color:#555;margin-top:3px">Model Confidence: 95%</div>
+      </div>
+      <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+        <div class="kpi-label">Degradation Rate</div>
+        <div style="font-size:22px;font-weight:700;color:#f39c12;margin-top:4px" id="degradRate">2.2% <span style="font-size:10px;color:#888;font-weight:400">/year</span></div>
+        <div style="font-size:9px;color:#777">↑ +0.3% vs previous year</div>
+      </div>
+      <div class="kpi-card" style="background:#13151e;border:0.5px solid #2a2d3a;border-radius:8px;padding:10px 12px">
+        <div class="kpi-label">Anomaly Score</div>
+        <div style="font-size:22px;font-weight:700;color:#e74c3c;margin-top:4px" id="anomScore">0.14</div>
+        <div style="font-size:9px;color:#777">Threshold: &gt;0.30 = Alert</div>
+        <div style="height:4px;background:#1e2130;border-radius:2px;margin-top:5px;overflow:hidden">
+          <div id="anomBar" style="height:100%;width:14%;background:#2ecc71;border-radius:2px;transition:width .5s"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REASONING LOG -->
+    <div class="card">
+      <div class="section-title">🔍 AI Reasoning Log <span style="font-size:8px;font-weight:400;color:#555;margin-left:4px">LSTM v2.1 · อัปเดต Real-Time</span></div>
+      <div style="background:#0a0c12;border:0.5px solid #1e2130;border-radius:6px;padding:10px;font-size:9px;color:#888;line-height:1.8;font-family:monospace" id="reasoningLog">
+        <div><span style="color:#a78bfa">[14:22:05]</span> <span style="color:#2ecc71">AI Reasoner:</span> Degradation rate increased 2.2% from Y3→Y4. Ambient temp 3.1°C above baseline detected.</div>
+        <div><span style="color:#a78bfa">[14:22:05]</span> <span style="color:#3a8fd9">Analysis:</span> Cell C41 IR = 13.79mΩ (↑0.8% trend). Recommend inspection within 30 days.</div>
+        <div><span style="color:#a78bfa">[14:22:04]</span> <span style="color:#f39c12">Warning:</span> 9 cells showing elevated IR pattern. Root cause: thermal stress + charge cycling.</div>
+        <div><span style="color:#a78bfa">[14:22:03]</span> <span style="color:#2ecc71">Forecast:</span> SOH projected at 88% in Y6 assuming current operating conditions continue.</div>
+        <div><span style="color:#a78bfa">[14:22:02]</span> <span style="color:#2ecc71">Model:</span> LSTM sequence analysis complete. 48-cell scan finished. Next scan in 60s.</div>
+      </div>
+    </div>
+
+    <!-- SOH FORECAST CHART -->
+    <div class="card">
+      <div class="section-title">📈 SOH Degradation &amp; AI Forecast</div>
+      <div style="display:flex;gap:12px;margin-bottom:6px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888"><span style="width:16px;height:2px;background:#2ecc71;display:inline-block"></span>Historical</div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888"><span style="width:16px;height:2px;background:#7c6fe0;display:inline-block"></span>AI Forecast (LSTM)</div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888"><span style="width:16px;height:2px;background:#3a8fd9;display:inline-block;border-top:1px dashed #3a8fd9"></span>95% Confidence Band</div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888"><span style="width:16px;height:2px;background:#f39c12;display:inline-block"></span>EOL Threshold (80%)</div>
+      </div>
+      <div style="position:relative;width:100%;height:150px"><canvas id="aiSohChart" role="img" aria-label="AI SOH forecast chart">SOH forecast.</canvas></div>
+    </div>
+
+    <!-- ROOT CAUSE IMPORTANCE -->
+    <div class="card">
+      <div class="section-title">⚡ Root Cause Importance Analysis</div>
+      <div class="section-sub">ปัจจัยที่ส่งผลต่อการเสื่อมสภาพของแบตเตอรี่ (SHAP Values)</div>
+      <div id="rootCauseList"></div>
+    </div>
+
+    <!-- CELL HEALTH HEATMAP -->
+    <div class="card">
+      <div class="section-title">🔥 Cell Health Heatmap</div>
+      <div class="section-sub">แสดงสถานะสุขภาพรายเซลล์ — สีแดง=ความเสี่ยงสูง / สีเขียว=ปกติ</div>
+      <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:3px" id="heatmap"></div>
+      <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888"><span style="width:10px;height:10px;background:#0d3b1e;border-radius:2px;display:inline-block"></span>Healthy (IR &lt;10)</div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888"><span style="width:10px;height:10px;background:#2d3b00;border-radius:2px;display:inline-block"></span>Good (IR 10–11)</div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888"><span style="width:10px;height:10px;background:#3b2800;border-radius:2px;display:inline-block"></span>Caution (IR 11–12.5)</div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#888"><span style="width:10px;height:10px;background:#3b0d0d;border-radius:2px;display:inline-block"></span>Risk (IR &gt;12.5)</div>
+      </div>
+    </div>
+
+    <!-- IR TREND PER INTERVAL -->
+    <div class="card">
+      <div class="section-title">📊 Internal Resistance Trend Analysis</div>
+      <div style="display:flex;gap:4px;margin-bottom:8px">
+        <div class="inner-tab active" onclick="setAIIRTab(0,this)">1 นาที</div>
+        <div class="inner-tab" onclick="setAIIRTab(1,this)">1 ชั่วโมง</div>
+        <div class="inner-tab" onclick="setAIIRTab(2,this)">1 วัน</div>
+      </div>
+      <div style="position:relative;width:100%;height:110px"><canvas id="aiIrChart" role="img" aria-label="IR trend by interval">IR trend.</canvas></div>
+    </div>
+
+    <!-- PRESCRIPTIVE ACTIONS -->
+    <div class="card">
+      <div class="section-title">✅ Prescriptive Actions</div>
+      <div class="section-sub">คำแนะนำจาก AI เรียงตามความเร่งด่วน</div>
+      <div id="prescActions"></div>
+    </div>
+
+    <!-- PREDICTION CONFIDENCE -->
+    <div class="card">
+      <div class="section-title">🎯 Prediction Confidence Distribution</div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div style="position:relative;width:90px;height:90px;flex-shrink:0">
+          <canvas id="confPie" role="img" aria-label="Prediction confidence pie">Confidence.</canvas>
+        </div>
+        <div style="flex:1;min-width:120px">
+          <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:5px"><span style="color:#888"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#2ecc71;margin-right:5px;vertical-align:middle"></span>High Confidence</span><span style="color:#2ecc71;font-weight:600">60%</span></div>
+          <div style="height:4px;background:#1e2130;border-radius:2px;margin-bottom:8px;overflow:hidden"><div style="height:100%;width:60%;background:#2ecc71;border-radius:2px"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:5px"><span style="color:#888"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f39c12;margin-right:5px;vertical-align:middle"></span>Medium Confidence</span><span style="color:#f39c12;font-weight:600">16%</span></div>
+          <div style="height:4px;background:#1e2130;border-radius:2px;margin-bottom:8px;overflow:hidden"><div style="height:100%;width:16%;background:#f39c12;border-radius:2px"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:5px"><span style="color:#888"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#e74c3c;margin-right:5px;vertical-align:middle"></span>Low Confidence</span><span style="color:#e74c3c;font-weight:600">24%</span></div>
+          <div style="height:4px;background:#1e2130;border-radius:2px;overflow:hidden"><div style="height:100%;width:24%;background:#e74c3c;border-radius:2px"></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- END AI PAGE -->
+
+  <div class="page" id="page-settings">
+    <div class="desktop-topbar">
+      <div><div style="font-size:14px;font-weight:600;color:#fff">System Settings</div>
+        <div style="font-size:10px;color:#666">การตั้งค่าระบบและการเชื่อมต่อ</div></div>
+    </div>
+    <div class="card">
+      <div class="section-title">🔌 Communication Settings</div>
+      <div class="form-row cols3">
+        <div class="form-group"><div class="form-label">Protocol</div>
+          <select class="form-select"><option>Modbus RTU</option><option>Modbus TCP</option><option>SNMP</option><option>IEC 61850</option></select></div>
+        <div class="form-group"><div class="form-label">Polling Interval (s)</div>
+          <input class="form-input" type="number" value="1" min="1" max="60"></div>
+        <div class="form-group"><div class="form-label">Baud Rate</div>
+          <select class="form-select"><option>9600</option><option selected>19200</option><option>38400</option><option>115200</option></select></div>
+      </div>
+      <div class="btn-group"><button class="btn btn-primary">💾 Save</button><button class="btn btn-secondary">🔄 Test Connection</button></div>
+    </div>
+    <div class="card">
+      <div class="section-title">📡 WebSocket / SSE Settings</div>
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">Update Method</div>
+          <select class="form-select"><option>WebSocket</option><option>Server-Sent Events (SSE)</option></select></div>
+        <div class="form-group"><div class="form-label">Heartbeat Interval (s)</div>
+          <input class="form-input" type="number" value="30" min="5" max="120"></div>
+      </div>
+      <div class="scada-row">
+        <div><div class="scada-label">Auto-reconnect on disconnect</div></div>
+        <label class="toggle"><input type="checkbox" checked><span class="slider-toggle"></span></label>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content-wrap -->
+</div><!-- /app -->
+
+<script>
+const gc='rgba(255,255,255,0.05)';
+const MAX=30;
+let rtCurrent=[],rtTemp=[],rtTime=[],cellV=[],cellIR=[];
+for(let i=0;i<MAX;i++){rtCurrent.push(+(Math.random()*40-20).toFixed(1));rtTemp.push(+(17+Math.random()*2).toFixed(1));rtTime.push('');}
+cellV=Array.from({length:48},()=>+(2.10+Math.random()*0.08).toFixed(3));
+cellIR=Array.from({length:48},()=>+(8.5+Math.random()*5).toFixed(2));
+
+// Clock
+function updateClock(){const s=new Date().toLocaleString('th-TH',{hour12:false});const el=document.getElementById('clockTop');if(el)el.textContent=s;}
+setInterval(updateClock,1000);updateClock();
+
+// Page navigation
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-tab,.sd-nav-item').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('[onclick*="\''+id+'\'"]').forEach(t=>t.classList.add('active'));
+}
+
+// Charts
+const currentChart=new Chart(document.getElementById('currentChart'),{type:'line',
+  data:{labels:[...rtTime],datasets:[{data:[...rtCurrent],borderColor:'#3a8fd9',borderWidth:1.5,pointRadius:0,tension:0.3,fill:true,backgroundColor:'rgba(58,143,217,0.08)'}]},
+  options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:gc},ticks:{display:false}},y:{grid:{color:gc},ticks:{color:'#666',font:{size:8},callback:v=>v+'A'},min:-60,max:60}}}});
+
+const cellVChart=new Chart(document.getElementById('cellVChart'),{type:'bar',
+  data:{labels:Array.from({length:48},(_,i)=>i+1),datasets:[{data:[...cellV],backgroundColor:cellV.map(v=>v<2.12?'#f39c12':'#7c6fe0'),borderWidth:0,borderRadius:1}]},
+  options:{responsive:true,maintainAspectRatio:false,animation:{duration:300},plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false},ticks:{color:'#555',font:{size:7},maxTicksLimit:12}},y:{grid:{color:gc},ticks:{color:'#666',font:{size:8},callback:v=>v.toFixed(2)+'V'},min:2.05,max:2.25}}}});
+
+const tempChart=new Chart(document.getElementById('tempChart'),{type:'line',
+  data:{labels:[...rtTime],datasets:[{data:[...rtTemp],borderColor:'#f39c12',borderWidth:1.5,pointRadius:0,tension:0.4,fill:true,backgroundColor:'rgba(243,156,18,0.08)'}]},
+  options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:gc},ticks:{display:false}},y:{grid:{color:gc},ticks:{color:'#666',font:{size:8},callback:v=>v+'°C'},min:15,max:22}}}});
+
+new Chart(document.getElementById('sohChart'),{type:'line',
+  data:{labels:['Y1','Y2','Y3','Y4','Y5','Y6','Y7','Y8','Y9','Y10'],
+    datasets:[
+      {label:'Historical',data:[100,98,96,94,92,null,null,null,null,null],borderColor:'#2ecc71',borderWidth:2,pointRadius:[3,3,3,3,4,0,0,0,0,0],tension:0.3,spanGaps:false},
+      {label:'Forecast',data:[null,null,null,null,92,88,84,80,76,72],borderColor:'#7c6fe0',borderWidth:2,borderDash:[4,3],pointRadius:2,pointBackgroundColor:'#7c6fe0',tension:0.3,spanGaps:true},
+      {label:'80%',data:[80,80,80,80,80,80,80,80,80,80],borderColor:'#f39c12',borderWidth:1,borderDash:[5,3],pointRadius:0}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:gc},ticks:{color:'#666',font:{size:8}}},y:{grid:{color:gc},ticks:{color:'#666',font:{size:8},callback:v=>v+'%'},min:65,max:105}}}});
+
+// Cell table
+function buildCellTable(){
+  const tbody=document.getElementById('cellTbody');
+  const grid=document.getElementById('cellMonGrid');
+  if(tbody) tbody.innerHTML='';
+  if(grid) grid.innerHTML='';
+  let norm=0,warn=0,crit=0;
+  cellV.forEach((v,i)=>{
+    const ir=cellIR[i];
+    const isCrit=ir>13.5||v<2.08;
+    const isWarn=!isCrit&&(ir>12||v<2.10);
+    const isOk=!isCrit&&!isWarn;
+    if(isCrit)crit++; else if(isWarn)warn++; else norm++;
+    const st=isCrit?'Critical':isWarn?'Warning':'Normal';
+    const bc=isCrit?'b-crit':isWarn?'b-warn':'b-ok';
+    const alarm=isCrit?'Over IR':isWarn?'Low V':'—';
+    if(tbody) tbody.innerHTML+=`<tr><td style="color:#888">C${String(i+1).padStart(2,'0')}</td><td>${v.toFixed(3)}</td><td>${ir.toFixed(2)}</td><td><span class="badge ${bc}">${st}</span></td><td style="color:${isCrit?'#e74c3c':isWarn?'#f39c12':'#555'}">${alarm}</td></tr>`;
+    if(grid){
+      const d=document.createElement('div');
+      d.className=isCrit?'c-crit':isWarn?'c-warn':'c-ok';
+      d.title=`Cell ${i+1} | V:${v.toFixed(3)} | IR:${ir.toFixed(2)}mΩ | ${st}`;
+      d.textContent=isCrit?'✕':isWarn?'⚠':'✓';
+      grid.appendChild(d);
+    }
+  });
+  const setEl=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  setEl('legNorm',norm+' Normal');
+  setEl('legWarn',warn+' Warning');
+  setEl('legCrit',crit+' Critical');
+  const ts=new Date().toLocaleTimeString('th-TH',{hour12:false});
+  setEl('cellLastUpdate','อัปเดต: '+ts);
+}
+
+// Alarm log data
+const alarmData=[
+  {ts:'2025-10-30 14:22:05',param:'Cell Voltage',cell:'C17',val:'2.07V',limit:'≥2.08V',sev:'Warning',status:'Active'},
+  {ts:'2025-10-30 13:10:12',param:'Internal Resistance',cell:'C41',val:'13.8mΩ',limit:'≤12.0mΩ',sev:'Warning',status:'Active'},
+  {ts:'2025-10-30 11:45:30',param:'String Current',cell:'All',val:'-53A',limit:'≥-50A',sev:'Critical',status:'Cleared'},
+  {ts:'2025-10-30 09:30:00',param:'Ambient Temp',cell:'—',val:'19.5°C',limit:'≤18.0°C',sev:'Info',status:'Cleared'},
+  {ts:'2025-10-29 22:15:44',param:'Cell Voltage',cell:'C23',val:'2.06V',limit:'≥2.08V',sev:'Warning',status:'Cleared'},
+  {ts:'2025-10-29 18:00:10',param:'String Voltage',cell:'All',val:'13.1V',limit:'≥13.2V',sev:'Info',status:'Cleared'},
+];
+function buildAlarmLog(){
+  const tbody=document.getElementById('alarmLogBody');
+  if(!tbody)return;
+  tbody.innerHTML=alarmData.map(a=>{
+    const sc=a.sev==='Critical'?'b-crit':a.sev==='Warning'?'b-warn':'b-info';
+    const ss=a.status==='Active'?'b-crit':'b-ok';
+    return `<tr><td style="color:#555;white-space:nowrap">${a.ts}</td><td>${a.param}</td><td style="color:#888">${a.cell}</td><td style="font-weight:600">${a.val}</td><td style="color:#555">${a.limit}</td><td><span class="badge ${sc}">${a.sev}</span></td><td><span class="badge ${ss}">${a.status}</span></td></tr>`;
+  }).join('');
+}
+
+// Recent reports
+function buildRecentReports(){
+  const reports=[
+    {name:'Report_BKK01_2025-10-30.xlsx',type:'Daily',gen:'2025-10-30 08:00',size:'2.4 MB',fmt:'xlsx'},
+    {name:'Report_BKK01_Week43.pdf',type:'Weekly',gen:'2025-10-28 06:00',size:'5.1 MB',fmt:'pdf'},
+    {name:'Report_BKK01_Alarm_Oct.xlsx',type:'Alarm',gen:'2025-10-25 09:00',size:'0.8 MB',fmt:'xlsx'},
+    {name:'Report_BKK01_2025-10.xml',type:'Monthly',gen:'2025-10-01 07:00',size:'12.3 MB',fmt:'xml'},
+  ];
+  const tbody=document.getElementById('recentReports');
+  if(!tbody)return;
+  const ic={'xlsx':'📊','pdf':'📄','xml':'🗃'};
+  tbody.innerHTML=reports.map(r=>`<tr><td>${ic[r.fmt]||'📁'} <span style="color:#ccc">${r.name}</span></td><td><span class="badge b-info">${r.type}</span></td><td style="color:#555">${r.gen}</td><td style="color:#666">${r.size}</td><td><span class="badge b-purple">${r.fmt.toUpperCase()}</span></td><td><button class="btn btn-secondary btn-sm">⬇ Download</button></td></tr>`).join('');
+}
+
+// Audit trail
+const auditData=[
+  {t:'14:22:05',u:'admin',a:'Updated threshold: Cell IR Upper Limit 12.0→13.0 mΩ'},
+  {t:'13:10:15',u:'eng01',a:'Acknowledged alarm: Cell C41 IR Warning'},
+  {t:'11:45:35',u:'admin',a:'Exported report: Report_BKK01_2025-10-30.xlsx'},
+  {t:'09:30:00',u:'eng02',a:'Login from 192.168.10.25 (PEA Network)'},
+  {t:'08:15:00',u:'admin',a:'Created scheduled report: Weekly PDF → manager@pea.co.th'},
+  {t:'07:50:22',u:'viewer01',a:'Login from 192.168.10.30 (PEA Network)'},
+  {t:'07:00:00',u:'system',a:'Scheduled report sent: Monthly XML → scada@pea.co.th'},
+];
+function buildAudit(){
+  const el=document.getElementById('auditTrail');
+  if(!el)return;
+  el.innerHTML=auditData.map(a=>`<div class="audit-row"><div class="audit-time">2025-10-30 ${a.t}</div><div class="audit-user">${a.u}</div><div class="audit-action">${a.a}</div></div>`).join('');
+}
+
+// RT update
+function rtUpdate(){
+  const ts=new Date().toLocaleTimeString('th-TH',{hour12:false});
+  const lastC=rtCurrent[rtCurrent.length-1];
+  const newC=+Math.max(-55,Math.min(55,lastC+(Math.random()*6-3))).toFixed(1);
+  rtCurrent.push(newC);if(rtCurrent.length>MAX)rtCurrent.shift();
+  rtTime.push(ts);if(rtTime.length>MAX)rtTime.shift();
+  const lastT=rtTemp[rtTemp.length-1];
+  const newT=+Math.max(16,Math.min(21,lastT+(Math.random()*0.4-0.2))).toFixed(1);
+  rtTemp.push(newT);if(rtTemp.length>MAX)rtTemp.shift();
+  const sv=+(13.4+Math.random()*0.3).toFixed(3);
+  const avgCV=+(cellV.reduce((a,b)=>a+b,0)/cellV.length).toFixed(3);
+  const avgIR=+(cellIR.reduce((a,b)=>a+b,0)/cellIR.length).toFixed(2);
+
+  currentChart.data.labels=[...rtTime];currentChart.data.datasets[0].data=[...rtCurrent];
+  currentChart.data.datasets[0].borderColor=newC>=0?'#3a8fd9':'#f39c12';currentChart.update('none');
+  tempChart.data.labels=[...rtTime];tempChart.data.datasets[0].data=[...rtTemp];tempChart.update('none');
+
+  const setEl=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  setEl('pStringV',sv.toFixed(3)+' V');setEl('pCellV',avgCV+' V');setEl('pIR',avgIR+' mΩ');setEl('pTemp',newT+' °C');
+  setEl('pCurrent',Math.abs(newC).toFixed(1)+' A');
+  const d=document.getElementById('curDir');
+  if(d){if(newC>1){d.textContent='⬆ Charging';d.style.background='#0a2540';d.style.color='#3a8fd9';}
+    else if(newC<-1){d.textContent='⬇ Discharging';d.style.background='#3b1f00';d.style.color='#f39c12';}
+    else{d.textContent='≈ Standby';d.style.background='#1e2130';d.style.color='#888';}}
+}
+
+function slowUpdate(){
+  cellV=cellV.map(v=>+Math.max(2.08,Math.min(2.22,v+(Math.random()*0.004-0.002))).toFixed(3));
+  cellIR=cellIR.map(v=>+Math.max(7.5,Math.min(14.5,v+(Math.random()*0.06-0.03))).toFixed(2));
+  cellVChart.data.datasets[0].data=[...cellV];
+  cellVChart.data.datasets[0].backgroundColor=cellV.map(v=>v<2.12?'#f39c12':'#7c6fe0');
+  cellVChart.update('none');
+  buildCellTable();
+}
+
+function saveThresh(){alert('✅ Thresholds saved successfully!\nNotification will be sent when values exceed limits.');}
+function testNotif(){alert('📧 Test notification sent!\nEmail: engineer@pea.co.th\nSMS: 0812345678');}
+function addUser(){alert('👤 Add User form would open here.');}
+function genReport(fmt){
+  const t=document.getElementById('rptType')?.value||'Daily Summary';
+  alert('📊 Generating '+t+' as '+fmt.toUpperCase()+'...\nDownload will start shortly.');
+}
+
+// Init
+buildCellTable();buildAlarmLog();buildRecentReports();buildAudit();
+setInterval(rtUpdate,1000);setInterval(slowUpdate,2000);
+rtUpdate();
+</script>
+</body>
+</html>
